@@ -27,10 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         child: FutureBuilder<List<dynamic>>(
           future: Future.wait([
-            repository.nextMatch(widget.club.id),
-            repository.latestNews(widget.club.id),
-            repository.activePoll(widget.club.id),
-            repository.latestHistory(widget.club.id),
+            repository.nextMatch(widget.club),
+            repository.latestNews(widget.club),
+            repository.activePoll(widget.club),
+            repository.todayHistory(widget.club),
           ]),
           builder: (context, snapshot) {
             if (snapshot.connectionState ==
@@ -77,15 +77,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               children: [
                 _header(),
-
                 const SizedBox(height: 22),
-
                 _matchHero(nextMatch),
-
                 const SizedBox(height: 18),
-
                 _nowCard(),
-
                 const SizedBox(height: 24),
 
                 _sectionHeader(
@@ -94,9 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 const SizedBox(height: 10),
-
                 _newsSection(news),
-
                 const SizedBox(height: 24),
 
                 _sectionHeader(
@@ -105,9 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 const SizedBox(height: 10),
-
                 _pollSection(poll),
-
                 const SizedBox(height: 24),
 
                 _sectionHeader(
@@ -116,11 +107,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 const SizedBox(height: 10),
-
                 _historySection(history),
-
                 const SizedBox(height: 24),
-
                 _clubStatus(),
               ],
             );
@@ -129,10 +117,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // =========================================================
-  // HEADER
-  // =========================================================
 
   Widget _header() {
     return Row(
@@ -151,9 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   letterSpacing: -1,
                 ),
               ),
-
               const SizedBox(height: 2),
-
               Text(
                 widget.club.name,
                 style: TextStyle(
@@ -165,7 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-
         IconButton(
           tooltip: 'התראות',
           onPressed: () {
@@ -181,9 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Icons.notifications_none_rounded,
           ),
         ),
-
         const SizedBox(width: 4),
-
         CircleAvatar(
           radius: 21,
           backgroundColor:
@@ -206,10 +185,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-
-  // =========================================================
-  // NEXT MATCH HERO
-  // =========================================================
 
   Widget _matchHero(
     Map<String, dynamic>? match,
@@ -324,9 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
               const Spacer(),
-
               Text(
                 match['competition']
                         ?.toString() ??
@@ -351,7 +324,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       widget.club.id,
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -362,7 +334,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   isLive || isFinished,
                 ),
               ),
-
               Expanded(
                 child: _team(
                   awayName,
@@ -473,9 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : null,
         ),
-
         const SizedBox(height: 8),
-
         Text(
           name,
           maxLines: 2,
@@ -544,10 +513,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // =========================================================
-  // 45:45 NOW
-  // =========================================================
-
   Widget _nowCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -580,9 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: widget.club.accent,
             ),
           ),
-
           const SizedBox(width: 12),
-
           const Expanded(
             child: Column(
               crossAxisAlignment:
@@ -610,10 +573,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // =========================================================
-  // NEWS
-  // =========================================================
 
   Widget _newsSection(
     List<Map<String, dynamic>> news,
@@ -727,10 +686,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // =========================================================
-  // POLL
-  // =========================================================
-
   Widget _pollSection(
     Map<String, dynamic>? poll,
   ) {
@@ -770,9 +725,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           Text(
             poll['question']?.toString() ?? '',
             style: const TextStyle(
@@ -781,9 +734,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 1.3,
             ),
           ),
-
           const SizedBox(height: 12),
-
           const Text(
             'אפשרויות ההצבעה יחוברו למסך הבית בשלב הבא.',
             style: TextStyle(
@@ -796,16 +747,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // =========================================================
-  // HISTORY
-  // =========================================================
-
   Widget _historySection(
     Map<String, dynamic>? history,
   ) {
     if (history == null) {
       return _emptyCard(
-        'עדיין לא הוזן אירוע היסטורי.',
+        'אין אירוע היסטורי להיום.',
       );
     }
 
@@ -825,9 +772,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-
             const SizedBox(height: 5),
-
             Text(
               history['title']?.toString() ?? '',
               style: const TextStyle(
@@ -835,7 +780,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-
             if (history['body'] != null) ...[
               const SizedBox(height: 8),
               Text(
@@ -853,10 +797,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // =========================================================
-  // CLUB STATUS
-  // =========================================================
 
   Widget _clubStatus() {
     return Container(
@@ -886,9 +826,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   )
                 : null,
           ),
-
           const SizedBox(width: 13),
-
           Expanded(
             child: Column(
               crossAxisAlignment:
@@ -912,7 +850,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-
           Icon(
             Icons.favorite_rounded,
             color: widget.club.accent,
@@ -921,10 +858,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  // =========================================================
-  // HELPERS
-  // =========================================================
 
   Widget _sectionHeader(
     String title,
