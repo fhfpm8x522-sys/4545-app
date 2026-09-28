@@ -16,7 +16,7 @@ class AppRepository {
         .or(
           'home_club_id.eq.$clubId,away_club_id.eq.$clubId',
         )
-        .order('kickoff', ascending: false);
+        .order('kickoff', ascending: true);
 
     return List<Map<String, dynamic>>.from(rows);
   }
