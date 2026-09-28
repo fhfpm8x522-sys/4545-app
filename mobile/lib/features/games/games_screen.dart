@@ -27,14 +27,18 @@ class _GamesScreenState extends State<GamesScreen> {
   }
 
   Future<void> refresh() async {
+    final future = repository.matches(widget.club.id);
+
     setState(() {
-      matchesFuture = repository.matches(widget.club.id);
+      matchesFuture = future;
     });
 
-    await matchesFuture;
+    await future;
   }
 
-  DateTime? parseDate(dynamic value) {
+  DateTime? parseKickoff(Map<String, dynamic> match) {
+    final value = match['kickoff'];
+
     if (value == null) return null;
 
     return DateTime.tryParse(
@@ -42,46 +46,89 @@ class _GamesScreenState extends State<GamesScreen> {
     )?.toLocal();
   }
 
-  String formatDate(dynamic value) {
-    final date = parseDate(value);
-
-    if (date == null) {
-      return 'טרם נקבע';
-    }
-
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-
-    return '$day/$month/${date.year} • $hour:$minute';
-  }
-
-  String matchStatus(Map<String, dynamic> match) {
-    final status =
-        match['status']?.toString().toLowerCase() ?? '';
-
-    switch (status) {
-      case 'live':
-        return 'LIVE';
-      case 'finished':
-        return 'הסתיים';
-      case 'postponed':
-        return 'נדחה';
-      case 'cancelled':
-        return 'בוטל';
-      default:
-        return formatDate(match['kickoff']);
-    }
+  bool isLive(Map<String, dynamic> match) {
+    return match['status']
+            ?.toString()
+            .toLowerCase() ==
+        'live';
   }
 
   bool isFinished(Map<String, dynamic> match) {
-    return match['status']?.toString().toLowerCase() ==
+    return match['status']
+            ?.toString()
+            .toLowerCase() ==
         'finished';
   }
 
-  bool isLive(Map<String, dynamic> match) {
-    return match['status']?.toString().toLowerCase() == 'live';
+  bool isCancelled(Map<String, dynamic> match) {
+    return match['status']
+            ?.toString()
+            .toLowerCase() ==
+        'cancelled';
+  }
+
+  bool isPostponed(Map<String, dynamic> match) {
+    return match['status']
+            ?.toString()
+            .toLowerCase() ==
+        'postponed';
+  }
+
+  List<Map<String, dynamic>> sortMatches(
+    List<Map<String, dynamic>> matches,
+  ) {
+    final now = DateTime.now();
+
+    final live = <Map<String, dynamic>>[];
+    final future = <Map<String, dynamic>>[];
+    final past = <Map<String, dynamic>>[];
+
+    for (final match in matches) {
+      final kickoff = parseKickoff(match);
+
+      if (isLive(match)) {
+        live.add(match);
+        continue;
+      }
+
+      if (kickoff != null &&
+          kickoff.isAfter(now) &&
+          !isFinished(match)) {
+        future.add(match);
+      } else {
+        past.add(match);
+      }
+    }
+
+    // הקרוב ביותר קודם.
+    future.sort((a, b) {
+      final aDate = parseKickoff(a);
+      final bDate = parseKickoff(b);
+
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+
+      return aDate.compareTo(bDate);
+    });
+
+    // המשחק האחרון קודם.
+    past.sort((a, b) {
+      final aDate = parseKickoff(a);
+      final bDate = parseKickoff(b);
+
+      if (aDate == null && bDate == null) return 0;
+      if (aDate == null) return 1;
+      if (bDate == null) return -1;
+
+      return bDate.compareTo(aDate);
+    });
+
+    return [
+      ...live,
+      ...future,
+      ...past,
+    ];
   }
 
   @override
@@ -99,104 +146,91 @@ class _GamesScreenState extends State<GamesScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 44,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'לא הצלחנו לטעון את המשחקים',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: refresh,
-                      child: const Text('נסה שוב'),
-                    ),
-                  ],
-                ),
-              ),
+            return _ErrorState(
+              onRetry: refresh,
             );
           }
 
-          final matches = snapshot.data ?? [];
-
-          final sortedMatches =
-              List<Map<String, dynamic>>.from(matches);
-
-          sortedMatches.sort((a, b) {
-            final aDate = parseDate(a['kickoff']);
-            final bDate = parseDate(b['kickoff']);
-
-            if (aDate == null && bDate == null) return 0;
-            if (aDate == null) return 1;
-            if (bDate == null) return -1;
-
-            return bDate.compareTo(aDate);
-          });
+          final matches = sortMatches(
+            snapshot.data ?? [],
+          );
 
           return RefreshIndicator(
             onRefresh: refresh,
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics:
+                  const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(
+                16,
                 18,
-                18,
-                18,
+                16,
                 110,
               ),
               children: [
-                const Text(
-                  'משחקים',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'כל המשחקים של ${widget.club.name}',
-                  style: const TextStyle(
-                    color: Colors.white60,
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                if (sortedMatches.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Text(
-                        'עדיין אין משחקים להצגה.',
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'משחקים',
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight:
+                                  FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            widget.club.name,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 15,
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-
-                ...sortedMatches.map(
-                  (match) => Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: 10,
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: widget.club.accent
+                            .withValues(alpha: .14),
+                      ),
+                      child: Icon(
+                        Icons.sports_soccer,
+                        color: widget.club.accent,
+                      ),
                     ),
-                    child: _MatchCard(
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                if (matches.isEmpty)
+                  const _EmptyState(),
+
+                ...matches.map(
+                  (match) => Padding(
+                    padding:
+                        const EdgeInsets.only(
+                      bottom: 14,
+                    ),
+                    child: MatchCard(
                       match: match,
                       club: widget.club,
-                      statusText: matchStatus(match),
-                      finished: isFinished(match),
-                      live: isLive(match),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => MatchCenter(
+                            builder: (_) =>
+                                MatchCenter(
                               match: match,
                               club: widget.club,
                             ),
@@ -215,282 +249,62 @@ class _GamesScreenState extends State<GamesScreen> {
   }
 }
 
-class _MatchCard extends StatelessWidget {
+// ============================================================
+// MATCH CARD
+// ============================================================
+
+class MatchCard extends StatelessWidget {
   final Map<String, dynamic> match;
   final Club club;
-  final String statusText;
-  final bool finished;
-  final bool live;
   final VoidCallback onTap;
 
-  const _MatchCard({
-    required this.match,
-    required this.club,
-    required this.statusText,
-    required this.finished,
-    required this.live,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final homeName =
-        match['home_name']?.toString() ?? 'קבוצת בית';
-
-    final awayName =
-        match['away_name']?.toString() ?? 'קבוצת חוץ';
-
-    final homeLogo =
-        match['home_logo_url']?.toString();
-
-    final awayLogo =
-        match['away_logo_url']?.toString();
-
-    final homeScore = match['home_score'];
-    final awayScore = match['away_score'];
-
-    final competition =
-        match['competition']?.toString() ?? 'כדורגל';
-
-    final round = match['round_name']?.toString();
-
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      competition,
-                      style: TextStyle(
-                        color: club.accent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  if (round != null && round.isNotEmpty)
-                    Text(
-                      round,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _Team(
-                      name: homeName,
-                      logo: homeLogo,
-                    ),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                    ),
-                    child: Column(
-                      children: [
-                        if (finished || live)
-                          Text(
-                            '${homeScore ?? '–'} : ${awayScore ?? '–'}',
-                            style: const TextStyle(
-                              fontSize: 25,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          )
-                        else
-                          const Text(
-                            'VS',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        const SizedBox(height: 5),
-                        Text(
-                          statusText,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: live
-                                ? Colors.redAccent
-                                : Colors.white54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Expanded(
-                    child: _Team(
-                      name: awayName,
-                      logo: awayLogo,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-
-              Row(
-                children: [
-                  Icon(
-                    Icons.stadium_outlined,
-                    size: 15,
-                    color: Colors.white.withValues(
-                      alpha: .45,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      match['stadium']?.toString().isNotEmpty ==
-                              true
-                          ? match['stadium'].toString()
-                          : 'אצטדיון טרם נקבע',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.chevron_left,
-                    color: Colors.white38,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Team extends StatelessWidget {
-  final String name;
-  final String? logo;
-
-  const _Team({
-    required this.name,
-    required this.logo,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _TeamLogo(
-          url: logo,
-          size: 52,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          name,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TeamLogo extends StatelessWidget {
-  final String? url;
-  final double size;
-
-  const _TeamLogo({
-    required this.url,
-    required this.size,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (url == null || url!.isEmpty) {
-      return SizedBox(
-        width: size,
-        height: size,
-        child: const Icon(
-          Icons.shield_outlined,
-          size: 38,
-        ),
-      );
-    }
-
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Image.network(
-        url!,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) {
-          return const Icon(
-            Icons.shield_outlined,
-            size: 38,
-          );
-        },
-      ),
-    );
-  }
-}
-
-class MatchCenter extends StatefulWidget {
-  final Map<String, dynamic> match;
-  final Club club;
-
-  const MatchCenter({
+  const MatchCard({
     super.key,
     required this.match,
     required this.club,
+    required this.onTap,
   });
 
-  @override
-  State<MatchCenter> createState() =>
-      _MatchCenterState();
-}
-
-class _MatchCenterState extends State<MatchCenter> {
-  final repository = AppRepository();
-
-  final messageController =
-      TextEditingController();
-
-  int homePrediction = 0;
-  int awayPrediction = 0;
-
-  @override
-  void dispose() {
-    messageController.dispose();
-    super.dispose();
-  }
-
   DateTime? get kickoff {
+    final value = match['kickoff'];
+
+    if (value == null) return null;
+
     return DateTime.tryParse(
-      widget.match['kickoff']?.toString() ?? '',
+      value.toString(),
     )?.toLocal();
   }
 
-  String get formattedKickoff {
+  String get status {
+    return match['status']
+            ?.toString()
+            .toLowerCase() ??
+        '';
+  }
+
+  bool get live => status == 'live';
+
+  bool get finished => status == 'finished';
+
+  String get homeName {
+    return FootballHebrew.team(
+      match['home_name']?.toString(),
+    );
+  }
+
+  String get awayName {
+    return FootballHebrew.team(
+      match['away_name']?.toString(),
+    );
+  }
+
+  String get competition {
+    return FootballHebrew.competition(
+      match['competition']?.toString(),
+    );
+  }
+
+  String get dateText {
     final date = kickoff;
 
     if (date == null) {
@@ -509,25 +323,511 @@ class _MatchCenterState extends State<MatchCenter> {
     final minute =
         date.minute.toString().padLeft(2, '0');
 
-    return '$day/$month/${date.year} • $hour:$minute';
+    return '$day.$month • $hour:$minute';
   }
 
-  bool get finished {
+  String get stateText {
+    switch (status) {
+      case 'live':
+        return 'LIVE';
+      case 'finished':
+        return 'הסתיים';
+      case 'cancelled':
+        return 'בוטל';
+      case 'postponed':
+        return 'נדחה';
+      default:
+        return dateText;
+    }
+  }
+
+  String? get roundText {
+    final raw =
+        match['round_name']?.toString();
+
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+
+    return FootballHebrew.round(raw);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final homeLogo =
+        match['home_logo_url']?.toString();
+
+    final awayLogo =
+        match['away_logo_url']?.toString();
+
+    return Material(
+      color: const Color(0xFF111216),
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            15,
+            16,
+            17,
+          ),
+          decoration: BoxDecoration(
+            borderRadius:
+                BorderRadius.circular(24),
+            border: Border.all(
+              color: live
+                  ? Colors.redAccent
+                      .withValues(alpha: .5)
+                  : Colors.white
+                      .withValues(alpha: .055),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Competition
+              Row(
+                children: [
+                  if (match[
+                              'competition_logo_url']
+                          ?.toString()
+                          .isNotEmpty ==
+                      true) ...[
+                    _NetworkLogo(
+                      url: match[
+                              'competition_logo_url']
+                          .toString(),
+                      size: 24,
+                      fallbackIcon:
+                          Icons.emoji_events_outlined,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+
+                  Expanded(
+                    child: Text(
+                      competition,
+                      maxLines: 1,
+                      overflow:
+                          TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: club.accent,
+                        fontSize: 13,
+                        fontWeight:
+                            FontWeight.w900,
+                      ),
+                    ),
+                  ),
+
+                  if (roundText != null)
+                    Text(
+                      roundText!,
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                        fontWeight:
+                            FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Teams
+              Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _MatchTeam(
+                      name: homeName,
+                      logo: homeLogo,
+                    ),
+                  ),
+
+                  SizedBox(
+                    width: 92,
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.only(
+                        top: 12,
+                      ),
+                      child: Column(
+                        children: [
+                          if (finished || live)
+                            Text(
+                              '${match['home_score'] ?? '–'}'
+                              '  -  '
+                              '${match['away_score'] ?? '–'}',
+                              textDirection:
+                                  TextDirection.ltr,
+                              style:
+                                  const TextStyle(
+                                fontSize: 25,
+                                fontWeight:
+                                    FontWeight.w900,
+                                letterSpacing: 1,
+                              ),
+                            )
+                          else
+                            Text(
+                              _timeOnly(kickoff),
+                              textDirection:
+                                  TextDirection.ltr,
+                              style:
+                                  const TextStyle(
+                                fontSize: 21,
+                                fontWeight:
+                                    FontWeight.w900,
+                              ),
+                            ),
+
+                          const SizedBox(height: 5),
+
+                          Text(
+                            live
+                                ? '● LIVE'
+                                : finished
+                                    ? 'הסתיים'
+                                    : 'VS',
+                            style: TextStyle(
+                              color: live
+                                  ? Colors.redAccent
+                                  : Colors.white38,
+                              fontSize: 10,
+                              fontWeight:
+                                  FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  Expanded(
+                    child: _MatchTeam(
+                      name: awayName,
+                      logo: awayLogo,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              Container(
+                height: 1,
+                color: Colors.white
+                    .withValues(alpha: .055),
+              ),
+
+              const SizedBox(height: 12),
+
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today_outlined,
+                    size: 14,
+                    color: Colors.white
+                        .withValues(alpha: .42),
+                  ),
+                  const SizedBox(width: 6),
+
+                  Text(
+                    finished || live
+                        ? dateText
+                        : _dateOnly(kickoff),
+                    textDirection:
+                        TextDirection.ltr,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  if (status == 'cancelled')
+                    const _StatusPill(
+                      text: 'בוטל',
+                    )
+                  else if (status ==
+                      'postponed')
+                    const _StatusPill(
+                      text: 'נדחה',
+                    )
+                  else if (live)
+                    const _StatusPill(
+                      text: 'LIVE',
+                      live: true,
+                    ),
+
+                  const SizedBox(width: 4),
+
+                  const Icon(
+                    Icons.chevron_left,
+                    color: Colors.white38,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _timeOnly(
+    DateTime? date,
+  ) {
+    if (date == null) return 'TBD';
+
+    final hour =
+        date.hour.toString().padLeft(2, '0');
+
+    final minute =
+        date.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
+  }
+
+  static String _dateOnly(
+    DateTime? date,
+  ) {
+    if (date == null) {
+      return 'מועד טרם נקבע';
+    }
+
+    final day =
+        date.day.toString().padLeft(2, '0');
+
+    final month =
+        date.month.toString().padLeft(2, '0');
+
+    return '$day.$month.${date.year}';
+  }
+}
+
+class _MatchTeam extends StatelessWidget {
+  final String name;
+  final String? logo;
+
+  const _MatchTeam({
+    required this.name,
+    required this.logo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _NetworkLogo(
+          url: logo,
+          size: 58,
+          fallbackIcon:
+              Icons.shield_outlined,
+        ),
+
+        const SizedBox(height: 10),
+
+        SizedBox(
+          height: 38,
+          child: Center(
+            child: Text(
+              name,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow:
+                  TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.2,
+                fontWeight:
+                    FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NetworkLogo extends StatelessWidget {
+  final String? url;
+  final double size;
+  final IconData fallbackIcon;
+
+  const _NetworkLogo({
+    required this.url,
+    required this.size,
+    required this.fallbackIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final valid =
+        url != null && url!.trim().isNotEmpty;
+
+    if (!valid) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: Icon(
+          fallbackIcon,
+          size: size * .7,
+          color: Colors.white30,
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Image.network(
+        url!,
+        fit: BoxFit.contain,
+        filterQuality:
+            FilterQuality.high,
+        errorBuilder:
+            (context, error, stackTrace) {
+          return Icon(
+            fallbackIcon,
+            size: size * .7,
+            color: Colors.white30,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String text;
+  final bool live;
+
+  const _StatusPill({
+    required this.text,
+    this.live = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 4,
+      ),
+      decoration: BoxDecoration(
+        borderRadius:
+            BorderRadius.circular(999),
+        color: live
+            ? Colors.redAccent
+                .withValues(alpha: .14)
+            : Colors.white
+                .withValues(alpha: .07),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: live
+              ? Colors.redAccent
+              : Colors.white60,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// MATCH CENTER
+// ============================================================
+
+class MatchCenter extends StatefulWidget {
+  final Map<String, dynamic> match;
+  final Club club;
+
+  const MatchCenter({
+    super.key,
+    required this.match,
+    required this.club,
+  });
+
+  @override
+  State<MatchCenter> createState() =>
+      _MatchCenterState();
+}
+
+class _MatchCenterState
+    extends State<MatchCenter> {
+  final repository = AppRepository();
+
+  final messageController =
+      TextEditingController();
+
+  int homePrediction = 0;
+  int awayPrediction = 0;
+
+  @override
+  void dispose() {
+    messageController.dispose();
+    super.dispose();
+  }
+
+  DateTime? get kickoff {
+    final value = widget.match['kickoff'];
+
+    if (value == null) return null;
+
+    return DateTime.tryParse(
+      value.toString(),
+    )?.toLocal();
+  }
+
+  String get status {
     return widget.match['status']
             ?.toString()
-            .toLowerCase() ==
-        'finished';
+            .toLowerCase() ??
+        '';
   }
 
-  bool get live {
-    return widget.match['status']
-            ?.toString()
-            .toLowerCase() ==
-        'live';
-  }
+  bool get finished =>
+      status == 'finished';
 
-  bool get canPredict {
-    return !finished && !live;
+  bool get live => status == 'live';
+
+  bool get canPredict =>
+      !finished &&
+      !live &&
+      status != 'cancelled';
+
+  String get dateText {
+    final date = kickoff;
+
+    if (date == null) {
+      return 'מועד טרם נקבע';
+    }
+
+    final day =
+        date.day.toString().padLeft(2, '0');
+
+    final month =
+        date.month.toString().padLeft(2, '0');
+
+    final hour =
+        date.hour.toString().padLeft(2, '0');
+
+    final minute =
+        date.minute.toString().padLeft(2, '0');
+
+    return '$day.$month.${date.year} • $hour:$minute';
   }
 
   @override
@@ -535,346 +835,299 @@ class _MatchCenterState extends State<MatchCenter> {
     final match = widget.match;
 
     final homeName =
-        match['home_name']?.toString() ??
-            'קבוצת בית';
+        FootballHebrew.team(
+      match['home_name']?.toString(),
+    );
 
     final awayName =
-        match['away_name']?.toString() ??
-            'קבוצת חוץ';
-
-    final homeLogo =
-        match['home_logo_url']?.toString();
-
-    final awayLogo =
-        match['away_logo_url']?.toString();
-
-    final competitionLogo =
-        match['competition_logo_url']
-            ?.toString();
+        FootballHebrew.team(
+      match['away_name']?.toString(),
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'MATCH CENTER',
           style: TextStyle(
-            fontWeight: FontWeight.w900,
+            fontWeight:
+                FontWeight.w900,
           ),
         ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
-          18,
-          18,
-          18,
+          16,
+          10,
+          16,
           60,
         ),
         children: [
           Container(
-            padding: const EdgeInsets.all(22),
+            padding:
+                const EdgeInsets.fromLTRB(
+              18,
+              18,
+              18,
+              22,
+            ),
             decoration: BoxDecoration(
+              color: const Color(0xFF111216),
               borderRadius:
-                  BorderRadius.circular(26),
-              color: widget.club.accent
-                  .withValues(alpha: .12),
+                  BorderRadius.circular(28),
               border: Border.all(
                 color: widget.club.accent
-                    .withValues(alpha: .25),
+                    .withValues(alpha: .2),
               ),
             ),
             child: Column(
               children: [
-                if (competitionLogo != null &&
-                    competitionLogo.isNotEmpty)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      bottom: 8,
-                    ),
-                    child: Image.network(
-                      competitionLogo,
-                      width: 38,
-                      height: 38,
-                      fit: BoxFit.contain,
-                      errorBuilder:
-                          (_, __, ___) =>
-                              const SizedBox(),
-                    ),
-                  ),
-
                 Text(
-                  match['competition']
-                          ?.toString() ??
-                      '',
-                  textAlign: TextAlign.center,
+                  FootballHebrew.competition(
+                    match['competition']
+                        ?.toString(),
+                  ),
+                  textAlign:
+                      TextAlign.center,
                   style: TextStyle(
-                    color: widget.club.accent,
-                    fontWeight: FontWeight.w900,
+                    color:
+                        widget.club.accent,
+                    fontSize: 14,
+                    fontWeight:
+                        FontWeight.w900,
                   ),
                 ),
 
-                if (match['round_name'] != null)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      top: 4,
-                    ),
-                    child: Text(
+                if (match['round_name'] !=
+                    null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    FootballHebrew.round(
                       match['round_name']
                           .toString(),
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
+                    ),
+                    style:
+                        const TextStyle(
+                      color:
+                          Colors.white38,
+                      fontSize: 11,
                     ),
                   ),
+                ],
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 26),
 
                 Row(
                   children: [
                     Expanded(
-                      child: _Team(
+                      child: _MatchTeam(
                         name: homeName,
-                        logo: homeLogo,
+                        logo: match[
+                                'home_logo_url']
+                            ?.toString(),
                       ),
                     ),
 
-                    Padding(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 10,
-                      ),
+                    SizedBox(
+                      width: 100,
                       child: Column(
                         children: [
-                          if (finished || live)
+                          if (finished ||
+                              live)
                             Text(
                               '${match['home_score'] ?? '–'}'
-                              ' : '
+                              '  -  '
                               '${match['away_score'] ?? '–'}',
+                              textDirection:
+                                  TextDirection
+                                      .ltr,
                               style:
                                   const TextStyle(
-                                fontSize: 30,
+                                fontSize: 29,
                                 fontWeight:
-                                    FontWeight.w900,
+                                    FontWeight
+                                        .w900,
                               ),
                             )
                           else
-                            const Text(
-                              'VS',
-                              style: TextStyle(
-                                fontSize: 22,
+                            Text(
+                              MatchCard
+                                  ._timeOnly(
+                                kickoff,
+                              ),
+                              textDirection:
+                                  TextDirection
+                                      .ltr,
+                              style:
+                                  const TextStyle(
+                                fontSize: 27,
                                 fontWeight:
-                                    FontWeight.w900,
+                                    FontWeight
+                                        .w900,
                               ),
                             ),
 
-                          if (live)
-                            const Padding(
-                              padding:
-                                  EdgeInsets.only(
-                                top: 4,
-                              ),
-                              child: Text(
-                                '● LIVE',
-                                style: TextStyle(
-                                  color:
-                                      Colors.redAccent,
-                                  fontSize: 12,
-                                  fontWeight:
-                                      FontWeight.w900,
-                                ),
-                              ),
+                          const SizedBox(
+                            height: 5,
+                          ),
+
+                          Text(
+                            live
+                                ? '● LIVE'
+                                : finished
+                                    ? 'הסתיים'
+                                    : 'VS',
+                            style: TextStyle(
+                              color: live
+                                  ? Colors
+                                      .redAccent
+                                  : Colors
+                                      .white38,
+                              fontSize: 11,
+                              fontWeight:
+                                  FontWeight
+                                      .w900,
                             ),
+                          ),
                         ],
                       ),
                     ),
 
                     Expanded(
-                      child: _Team(
+                      child: _MatchTeam(
                         name: awayName,
-                        logo: awayLogo,
+                        logo: match[
+                                'away_logo_url']
+                            ?.toString(),
                       ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
 
                 Text(
-                  formattedKickoff,
+                  dateText,
+                  textDirection:
+                      TextDirection.ltr,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w700,
+                    color: Colors.white70,
+                    fontWeight:
+                        FontWeight.w700,
                   ),
                 ),
-
-                const SizedBox(height: 6),
 
                 if (match['stadium']
                         ?.toString()
                         .isNotEmpty ==
-                    true)
-                  Text(
-                    match['stadium'].toString(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white60,
-                    ),
+                    true) ...[
+                  const SizedBox(height: 7),
+                  Row(
+                    mainAxisAlignment:
+                        MainAxisAlignment
+                            .center,
+                    children: [
+                      const Icon(
+                        Icons
+                            .stadium_outlined,
+                        size: 15,
+                        color:
+                            Colors.white38,
+                      ),
+                      const SizedBox(
+                          width: 5),
+                      Flexible(
+                        child: Text(
+                          match['stadium']
+                              .toString(),
+                          textAlign:
+                              TextAlign.center,
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
+                ],
               ],
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           if (canPredict)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'ניחוש תוצאה',
-                      style: TextStyle(
-                        fontSize: 19,
-                        fontWeight:
-                            FontWeight.w900,
-                      ),
+            _PredictionCard(
+              homeName: homeName,
+              awayName: awayName,
+              homePrediction:
+                  homePrediction,
+              awayPrediction:
+                  awayPrediction,
+              onHomeMinus: () {
+                if (homePrediction == 0) {
+                  return;
+                }
+
+                setState(() {
+                  homePrediction--;
+                });
+              },
+              onHomePlus: () {
+                setState(() {
+                  homePrediction++;
+                });
+              },
+              onAwayMinus: () {
+                if (awayPrediction == 0) {
+                  return;
+                }
+
+                setState(() {
+                  awayPrediction--;
+                });
+              },
+              onAwayPlus: () {
+                setState(() {
+                  awayPrediction++;
+                });
+              },
+              onSubmit: () async {
+                await repository.prediction(
+                  match['id'],
+                  homePrediction,
+                  awayPrediction,
+                );
+
+                if (!context.mounted) {
+                  return;
+                }
+
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'הניחוש נשמר 🔥',
                     ),
-
-                    const SizedBox(height: 12),
-
-                    Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            if (homePrediction >
-                                0) {
-                              setState(() {
-                                homePrediction--;
-                              });
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.remove,
-                          ),
-                        ),
-
-                        Text(
-                          '$homePrediction',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight:
-                                FontWeight.w900,
-                          ),
-                        ),
-
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              homePrediction++;
-                            });
-                          },
-                          icon:
-                              const Icon(Icons.add),
-                        ),
-
-                        const Padding(
-                          padding:
-                              EdgeInsets.symmetric(
-                            horizontal: 8,
-                          ),
-                          child: Text(
-                            ':',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight:
-                                  FontWeight.w900,
-                            ),
-                          ),
-                        ),
-
-                        IconButton(
-                          onPressed: () {
-                            if (awayPrediction >
-                                0) {
-                              setState(() {
-                                awayPrediction--;
-                              });
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.remove,
-                          ),
-                        ),
-
-                        Text(
-                          '$awayPrediction',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight:
-                                FontWeight.w900,
-                          ),
-                        ),
-
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              awayPrediction++;
-                            });
-                          },
-                          icon:
-                              const Icon(Icons.add),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () async {
-                          await repository.prediction(
-                            match['id'],
-                            homePrediction,
-                            awayPrediction,
-                          );
-
-                          if (!context.mounted) {
-                            return;
-                          }
-
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'הניחוש נשמר 🔥',
-                              ),
-                            ),
-                          );
-                        },
-                        child:
-                            const Text('שלח ניחוש'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
 
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding:
+                  const EdgeInsets.all(14),
               child: SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child:
+                    OutlinedButton.icon(
                   onPressed: () async {
-                    await repository.attendance(
+                    await repository
+                        .attendance(
                       match['id'],
                     );
 
@@ -892,10 +1145,12 @@ class _MatchCenterState extends State<MatchCenter> {
                       ),
                     );
                   },
-                  icon:
-                      const Icon(Icons.stadium),
-                  label:
-                      const Text('הייתי במשחק'),
+                  icon: const Icon(
+                    Icons.stadium,
+                  ),
+                  label: const Text(
+                    'הייתי במשחק',
+                  ),
                 ),
               ),
             ),
@@ -904,49 +1159,60 @@ class _MatchCenterState extends State<MatchCenter> {
           FutureBuilder<
               List<Map<String, dynamic>>>(
             future:
-                repository.events(match['id']),
-            builder: (context, snapshot) {
+                repository.events(
+              match['id'],
+            ),
+            builder:
+                (context, snapshot) {
               final events =
                   snapshot.data ?? [];
 
               return Card(
                 child: Padding(
                   padding:
-                      const EdgeInsets.all(16),
+                      const EdgeInsets
+                          .all(16),
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                     children: [
                       const Text(
                         'אירועי משחק',
                         style: TextStyle(
                           fontSize: 19,
                           fontWeight:
-                              FontWeight.w900,
+                              FontWeight
+                                  .w900,
                         ),
                       ),
 
-                      const SizedBox(height: 8),
+                      const SizedBox(
+                          height: 8),
 
                       if (events.isEmpty)
                         const Padding(
                           padding:
-                              EdgeInsets.symmetric(
+                              EdgeInsets
+                                  .symmetric(
                             vertical: 12,
                           ),
                           child: Text(
                             'אין עדיין אירועים למשחק.',
-                            style: TextStyle(
-                              color:
-                                  Colors.white54,
+                            style:
+                                TextStyle(
+                              color: Colors
+                                  .white54,
                             ),
                           ),
                         ),
 
                       ...events.map(
-                        (event) => ListTile(
+                        (event) =>
+                            ListTile(
                           contentPadding:
-                              EdgeInsets.zero,
+                              EdgeInsets
+                                  .zero,
                           title: Text(
                             "${event['minute'] ?? ''}' • "
                             "${event['event_type'] ?? ''}",
@@ -970,23 +1236,27 @@ class _MatchCenterState extends State<MatchCenter> {
             'MATCH CHAT',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
 
           const SizedBox(height: 8),
 
           TextField(
-            controller: messageController,
+            controller:
+                messageController,
             decoration: InputDecoration(
-              hintText: 'כתוב הודעה...',
+              hintText:
+                  'כתוב הודעה...',
               suffixIcon: IconButton(
                 icon: const Icon(
                   Icons.send,
                 ),
                 onPressed: () async {
                   final message =
-                      messageController.text
+                      messageController
+                          .text
                           .trim();
 
                   if (message.isEmpty) {
@@ -998,7 +1268,8 @@ class _MatchCenterState extends State<MatchCenter> {
                     body: message,
                   );
 
-                  messageController.clear();
+                  messageController
+                      .clear();
 
                   setState(() {});
                 },
@@ -1013,7 +1284,8 @@ class _MatchCenterState extends State<MatchCenter> {
             future: repository.chat(
               match: match['id'],
             ),
-            builder: (context, snapshot) {
+            builder:
+                (context, snapshot) {
               final messages =
                   snapshot.data ?? [];
 
@@ -1024,17 +1296,20 @@ class _MatchCenterState extends State<MatchCenter> {
                   child: Text(
                     'עדיין אין הודעות. תהיה הראשון ביציע 🔥',
                     style: TextStyle(
-                      color: Colors.white54,
+                      color:
+                          Colors.white54,
                     ),
                   ),
                 );
               }
 
               return Column(
-                children: messages.map(
+                children:
+                    messages.map(
                   (message) {
                     final profile =
-                        message['profiles']
+                        message[
+                                'profiles']
                             as Map<String,
                                 dynamic>?;
 
@@ -1049,11 +1324,13 @@ class _MatchCenterState extends State<MatchCenter> {
                       contentPadding:
                           EdgeInsets.zero,
                       title: Text(
-                        author.toString(),
+                        author
+                            .toString(),
                         style:
                             const TextStyle(
                           fontWeight:
-                              FontWeight.w800,
+                              FontWeight
+                                  .w800,
                         ),
                       ),
                       subtitle: Text(
@@ -1068,6 +1345,412 @@ class _MatchCenterState extends State<MatchCenter> {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PredictionCard
+    extends StatelessWidget {
+  final String homeName;
+  final String awayName;
+
+  final int homePrediction;
+  final int awayPrediction;
+
+  final VoidCallback onHomeMinus;
+  final VoidCallback onHomePlus;
+  final VoidCallback onAwayMinus;
+  final VoidCallback onAwayPlus;
+  final VoidCallback onSubmit;
+
+  const _PredictionCard({
+    required this.homeName,
+    required this.awayName,
+    required this.homePrediction,
+    required this.awayPrediction,
+    required this.onHomeMinus,
+    required this.onHomePlus,
+    required this.onAwayMinus,
+    required this.onAwayPlus,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Align(
+              alignment:
+                  Alignment.centerRight,
+              child: Text(
+                'ניחוש תוצאה',
+                style: TextStyle(
+                  fontSize: 19,
+                  fontWeight:
+                      FontWeight.w900,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    homeName,
+                    textAlign:
+                        TextAlign.center,
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 90),
+                Expanded(
+                  child: Text(
+                    awayName,
+                    textAlign:
+                        TextAlign.center,
+                    maxLines: 1,
+                    overflow:
+                        TextOverflow.ellipsis,
+                    style:
+                        const TextStyle(
+                      fontSize: 12,
+                      fontWeight:
+                          FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            Row(
+              mainAxisAlignment:
+                  MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed:
+                      onHomeMinus,
+                  icon: const Icon(
+                    Icons.remove,
+                  ),
+                ),
+                Text(
+                  '$homePrediction',
+                  style:
+                      const TextStyle(
+                    fontSize: 24,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+                IconButton(
+                  onPressed:
+                      onHomePlus,
+                  icon: const Icon(
+                    Icons.add,
+                  ),
+                ),
+
+                const Padding(
+                  padding:
+                      EdgeInsets.symmetric(
+                    horizontal: 5,
+                  ),
+                  child: Text(
+                    ':',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight:
+                          FontWeight.w900,
+                    ),
+                  ),
+                ),
+
+                IconButton(
+                  onPressed:
+                      onAwayMinus,
+                  icon: const Icon(
+                    Icons.remove,
+                  ),
+                ),
+                Text(
+                  '$awayPrediction',
+                  style:
+                      const TextStyle(
+                    fontSize: 24,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+                IconButton(
+                  onPressed:
+                      onAwayPlus,
+                  icon: const Icon(
+                    Icons.add,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onSubmit,
+                child: const Text(
+                  'שלח ניחוש',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// HEBREW NAMES
+// ============================================================
+
+class FootballHebrew {
+  static const Map<String, String>
+      _teams = {
+    "Hapoel Be'er Sheva":
+        'הפועל באר שבע',
+    "H. Beer Sheva":
+        'הפועל באר שבע',
+
+    'Maccabi Haifa':
+        'מכבי חיפה',
+    'Maccabi Tel Aviv':
+        'מכבי תל אביב',
+    'Beitar Jerusalem':
+        'בית"ר ירושלים',
+    'Hapoel Jerusalem':
+        'הפועל ירושלים',
+    'Hapoel Tel Aviv':
+        'הפועל תל אביב',
+    'Hapoel Haifa':
+        'הפועל חיפה',
+    'Maccabi Netanya':
+        'מכבי נתניה',
+    'Netanya':
+        'מכבי נתניה',
+    'Bnei Sakhnin':
+        'בני סכנין',
+    'Sakhnin':
+        'בני סכנין',
+    'Maccabi Petah Tikva':
+        'מכבי פתח תקווה',
+    'Hapoel Petah Tikva':
+        'הפועל פתח תקווה',
+    'Ironi Tiberias':
+        'עירוני טבריה',
+    'Ironi Kiryat Shmona':
+        'עירוני קריית שמונה',
+    'Kiryat Shmona':
+        'עירוני קריית שמונה',
+  };
+
+  static String team(
+    String? value,
+  ) {
+    if (value == null ||
+        value.trim().isEmpty) {
+      return 'קבוצה';
+    }
+
+    final clean = value.trim();
+
+    return _teams[clean] ?? clean;
+  }
+
+  static String competition(
+    String? value,
+  ) {
+    if (value == null ||
+        value.trim().isEmpty) {
+      return 'כדורגל';
+    }
+
+    final clean = value.trim();
+
+    if (clean.contains(
+      "Ligat Ha'al",
+    )) {
+      if (clean
+          .toLowerCase()
+          .contains('championship')) {
+        return 'ליגת העל • פלייאוף עליון';
+      }
+
+      return 'ליגת העל';
+    }
+
+    if (clean.contains(
+      'UEFA Europa League',
+    )) {
+      if (clean
+          .toLowerCase()
+          .contains('league phase')) {
+        return 'הליגה האירופית • שלב הליגה';
+      }
+
+      return 'הליגה האירופית';
+    }
+
+    if (clean.contains(
+      'UEFA Champions League',
+    )) {
+      return 'ליגת האלופות';
+    }
+
+    if (clean.contains(
+      'UEFA Conference League',
+    )) {
+      return 'הקונפרנס ליג';
+    }
+
+    if (clean.contains(
+      'State Cup',
+    )) {
+      return 'גביע המדינה';
+    }
+
+    if (clean.contains(
+      'Toto Cup',
+    )) {
+      return 'גביע הטוטו';
+    }
+
+    if (clean.contains(
+      'Club Friendlies',
+    )) {
+      return 'משחק ידידות';
+    }
+
+    return clean;
+  }
+
+  static String round(
+    String value,
+  ) {
+    return value
+        .replaceAll(
+          'League Phase',
+          'שלב הליגה',
+        )
+        .replaceAll(
+          'Championship Group',
+          'פלייאוף עליון',
+        )
+        .replaceAll(
+          'Group Stage',
+          'שלב הבתים',
+        )
+        .replaceAll(
+          'Club Friendly',
+          'ידידות',
+        );
+  }
+}
+
+// ============================================================
+// STATES
+// ============================================================
+
+class _ErrorState
+    extends StatelessWidget {
+  final Future<void> Function() onRetry;
+
+  const _ErrorState({
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 44,
+              color: Colors.white54,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'לא הצלחנו לטעון את המשחקים',
+              style: TextStyle(
+                fontSize: 19,
+                fontWeight:
+                    FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () {
+                onRetry();
+              },
+              child:
+                  const Text('נסה שוב'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState
+    extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(
+              Icons
+                  .sports_soccer_outlined,
+              size: 38,
+              color: Colors.white38,
+            ),
+            SizedBox(height: 10),
+            Text(
+              'אין משחקים להצגה כרגע',
+              style: TextStyle(
+                fontWeight:
+                    FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
