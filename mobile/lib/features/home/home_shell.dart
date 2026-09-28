@@ -35,7 +35,6 @@ class _HomeShellState extends State<HomeShell> {
     pages = [
       HomeScreen(
         club: widget.club,
-        displayName: widget.displayName,
       ),
       GamesScreen(
         club: widget.club,
