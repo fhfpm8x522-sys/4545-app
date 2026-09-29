@@ -30,9 +30,7 @@ class AppRepository {
         .eq('id', matchId)
         .maybeSingle();
 
-    if (row == null) {
-      return null;
-    }
+    if (row == null) return null;
 
     return Map<String, dynamic>.from(row);
   }
@@ -46,9 +44,29 @@ class AppRepository {
   ) async {
     final rows = await client
         .from('match_events')
-        .select()
+        .select(
+          '''
+          *,
+          player:players!match_events_player_ref_id_fkey(
+            id,
+            name,
+            name_he,
+            image_url,
+            goal_name,
+            goal_api_id
+          ),
+          secondary_player:players!match_events_secondary_player_ref_id_fkey(
+            id,
+            name,
+            name_he,
+            image_url,
+            goal_name,
+            goal_api_id
+          )
+          ''',
+        )
         .eq('match_id', matchId)
-        .order('minute', ascending: true);
+        .order('minute', ascending: false);
 
     return List<Map<String, dynamic>>.from(rows);
   }
@@ -92,6 +110,7 @@ class AppRepository {
             id,
             club_id,
             name,
+            name_he,
             number,
             position,
             nationality,
@@ -123,7 +142,7 @@ class AppRepository {
   }
 
   // =========================================================
-  // CLUB HISTORY
+  // HISTORY
   // =========================================================
 
   Future<List<Map<String, dynamic>>> history(
@@ -156,7 +175,7 @@ class AppRepository {
   }
 
   // =========================================================
-  // COMMUNITY POSTS
+  // COMMUNITY
   // =========================================================
 
   Future<List<Map<String, dynamic>>> posts(
@@ -170,15 +189,15 @@ class AppRepository {
         .order('created_at', ascending: false)
         .limit(100);
 
-    final posts =
+    final result =
         List<Map<String, dynamic>>.from(rows);
 
     await _attachPublicProfiles(
-      posts,
+      result,
       authorKey: 'author_id',
     );
 
-    return posts;
+    return result;
   }
 
   Future<void> post(
@@ -193,16 +212,14 @@ class AppRepository {
       );
     }
 
-    final cleanBody = body.trim();
+    final clean = body.trim();
 
-    if (cleanBody.isEmpty) {
-      return;
-    }
+    if (clean.isEmpty) return;
 
     await client.from('community_posts').insert({
       'club_id': clubId,
       'author_id': user.id,
-      'body': cleanBody,
+      'body': clean,
     });
   }
 
@@ -220,20 +237,11 @@ class AppRepository {
         .isFilter('removed_at', null);
 
     if (match != null) {
-      query = query.eq(
-        'match_id',
-        match,
-      );
+      query = query.eq('match_id', match);
     } else if (club != null) {
       query = query
-          .eq(
-            'club_id',
-            club,
-          )
-          .isFilter(
-            'match_id',
-            null,
-          );
+          .eq('club_id', club)
+          .isFilter('match_id', null);
     } else {
       return [];
     }
@@ -269,23 +277,19 @@ class AppRepository {
       );
     }
 
-    final cleanBody = body.trim();
+    final clean = body.trim();
 
-    if (cleanBody.isEmpty) {
-      return;
-    }
+    if (clean.isEmpty) return;
 
     if (club == null && match == null) {
-      throw Exception(
-        'חסר יעד להודעה.',
-      );
+      throw Exception('חסר יעד להודעה.');
     }
 
     await client.from('chat_messages').insert({
       'club_id': club,
       'match_id': match,
       'author_id': user.id,
-      'body': cleanBody,
+      'body': clean,
     });
   }
 
@@ -321,9 +325,7 @@ class AppRepository {
       myPredictions() async {
     final user = client.auth.currentUser;
 
-    if (user == null) {
-      return [];
-    }
+    if (user == null) return [];
 
     final rows = await client
         .from('predictions')
@@ -357,7 +359,7 @@ class AppRepository {
   }
 
   // =========================================================
-  // MATCH ATTENDANCE
+  // ATTENDANCE
   // =========================================================
 
   Future<void> attendance(
@@ -384,9 +386,7 @@ class AppRepository {
       myAttendance() async {
     final user = client.auth.currentUser;
 
-    if (user == null) {
-      return [];
-    }
+    if (user == null) return [];
 
     final rows = await client
         .from('match_attendance')
@@ -444,15 +444,13 @@ class AppRepository {
   }
 
   // =========================================================
-  // CURRENT PROFILE
+  // PROFILE
   // =========================================================
 
   Future<Map<String, dynamic>?> profile() async {
     final user = client.auth.currentUser;
 
-    if (user == null) {
-      return null;
-    }
+    if (user == null) return null;
 
     final row = await client
         .from('profiles')
@@ -460,19 +458,13 @@ class AppRepository {
         .eq('id', user.id)
         .maybeSingle();
 
-    if (row == null) {
-      return null;
-    }
+    if (row == null) return null;
 
     return Map<String, dynamic>.from(row);
   }
 
   // =========================================================
   // SAFE PUBLIC PROFILES
-  //
-  // Uses get_public_profiles() from migration 0007.
-  // We NEVER give community users direct SELECT access
-  // to the complete private profiles table.
   // =========================================================
 
   Future<void> _attachPublicProfiles(
@@ -485,15 +477,11 @@ class AppRepository {
               item[authorKey]?.toString(),
         )
         .whereType<String>()
-        .where(
-          (id) => id.isNotEmpty,
-        )
+        .where((id) => id.isNotEmpty)
         .toSet()
         .toList();
 
-    if (ids.isEmpty) {
-      return;
-    }
+    if (ids.isEmpty) return;
 
     final result = await client.rpc(
       'get_public_profiles',
@@ -502,31 +490,27 @@ class AppRepository {
       },
     );
 
-    if (result == null) {
-      return;
-    }
+    if (result == null) return;
 
     final profiles =
         List<Map<String, dynamic>>.from(
       result,
     );
 
-    final profilesById =
+    final byId =
         <String, Map<String, dynamic>>{
       for (final profile in profiles)
-        profile['id'].toString(): profile,
+        profile['id'].toString():
+            profile,
     };
 
     for (final item in items) {
-      final authorId =
+      final id =
           item[authorKey]?.toString();
 
-      if (authorId == null) {
-        continue;
+      if (id != null) {
+        item['profiles'] = byId[id];
       }
-
-      item['profiles'] =
-          profilesById[authorId];
     }
   }
 }
