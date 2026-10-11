@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/club.dart';
 import '../../repositories/home_repository.dart';
+import '../games/games_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Club club;
@@ -18,20 +19,34 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final repository = HomeRepository();
 
+  late Future<List<dynamic>> homeFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    homeFuture = _load();
+  }
+
+  Future<List<dynamic>> _load() => Future.wait([
+    repository.nextMatch(widget.club),
+    repository.latestNews(widget.club),
+    repository.activePoll(widget.club),
+    repository.todayHistory(widget.club),
+  ]);
+
+  Future<void> _refresh() async {
+    final future = _load();
+    setState(() => homeFuture = future);
+    await future;
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: RefreshIndicator(
-        onRefresh: () async {
-          setState(() {});
-        },
+        onRefresh: _refresh,
         child: FutureBuilder<List<dynamic>>(
-          future: Future.wait([
-            repository.nextMatch(widget.club),
-            repository.latestNews(widget.club),
-            repository.activePoll(widget.club),
-            repository.todayHistory(widget.club),
-          ]),
+          future: homeFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState ==
                 ConnectionState.waiting) {
@@ -80,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 22),
                 _matchHero(nextMatch),
                 const SizedBox(height: 18),
-                _nowCard(),
+                _nowCard(nextMatch, news),
                 const SizedBox(height: 24),
 
                 _sectionHeader(
@@ -389,12 +404,10 @@ class _HomeScreenState extends State<HomeScreen> {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: () {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'פתח את לשונית משחקים כדי להיכנס ל־Match Center.',
-                    ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MatchCenter(match: match, club: widget.club),
                   ),
                 );
               },
@@ -513,7 +526,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _nowCard() {
+  Widget _nowCard(Map<String, dynamic>? match, List<Map<String, dynamic>> news) {
+    final update = match?['status'] == 'live'
+        ? '${FootballHebrew.team(match?['home_name']?.toString())} ${match?['home_score'] ?? '–'} : ${match?['away_score'] ?? '–'} ${FootballHebrew.team(match?['away_name']?.toString())} • בשידור חי'
+        : news.isNotEmpty
+            ? news.first['title']?.toString() ?? 'פורסם עדכון חדש'
+            : 'אין כרגע עדכונים חדשים.';
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -546,22 +564,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '45:45 עכשיו',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
                 Text(
-                  'העדכונים החשובים ביותר של הקבוצה שלך ירוכזו כאן בזמן אמת.',
-                  style: TextStyle(
+                  update,
+                  style: const TextStyle(
                     color: Colors.white60,
                     height: 1.4,
                   ),
