@@ -1,4 +1,4 @@
-import {s,n,b,pick,arr,status,fixtureScore,preserveKnown,uniqueEvents,collectFixtures} from "./normalize.ts";
+import {s,n,b,pick,arr,status,fixtureScore,preserveKnown,uniqueEvents,collectFixtures,substitutionPlayers} from "./normalize.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GOAL_BASE = "https://api.goal-api.com/v1";
@@ -573,7 +573,8 @@ async function playerByApi(apiId: string | null) {
     .eq("goal_api_id", apiId)
     .limit(1);
 
-  if (q.error || !q.data?.length) return null;
+  if (q.error) throw q.error;
+  if (!q.data?.length) return null;
 
   return q.data[0] as J;
 }
@@ -692,14 +693,14 @@ async function syncMatchEvents(match: J) {
     let side = eventSide(c);
 
     if (!side) {
-      if (s(c.homePlayer) || s(c.homePlayerId)) side = "home";
-      else if (s(c.awayPlayer) || s(c.awayPlayerId)) side = "away";
+      if (s(c.homeFault) || s(c.homePlayer) || s(c.homePlayerId)) side = "home";
+      else if (s(c.awayFault) || s(c.awayPlayer) || s(c.awayPlayerId)) side = "away";
     }
 
     const name = pick(
       c.player,
       c.playerName,
-      side === "home" ? c.homePlayer : c.awayPlayer,
+      side === "home" ? pick(c.homeFault, c.homePlayer) : pick(c.awayFault, c.awayPlayer),
     );
 
     const apiId = s(
@@ -739,7 +740,7 @@ async function syncMatchEvents(match: J) {
       secondary_player_id: null,
 
       score: null,
-      period: s(c.period),
+      period: s(pick(c.scoreInfoTime, c.period)),
       raw_type: raw,
 
       player_ref_id: player?.id ?? null,
@@ -751,51 +752,7 @@ async function syncMatchEvents(match: J) {
   for (const sub of subs) {
     let side = eventSide(sub);
 
-    const names =
-      s(pick(sub.player, sub.players, sub.playerName))
-        ?.split("|")
-        .map((x) => x.trim()) ?? [];
-
-    const ids =
-      s(pick(sub.playerId, sub.playerIds))
-        ?.split("|")
-        .map((x) => x.trim()) ?? [];
-
-    // GOAL:
-    // first = OUT
-    // second = IN
-
-    const outName = pick(
-      sub.playerOut,
-      sub.outPlayer,
-      sub.outgoingPlayer,
-      names[0],
-    );
-
-    const inName = pick(
-      sub.playerIn,
-      sub.inPlayer,
-      sub.incomingPlayer,
-      names[1],
-    );
-
-    const outId = s(
-      pick(
-        sub.playerOutId,
-        sub.outPlayerId,
-        sub.outgoingPlayerId,
-        ids[0],
-      ),
-    );
-
-    const inId = s(
-      pick(
-        sub.playerInId,
-        sub.inPlayerId,
-        sub.incomingPlayerId,
-        ids[1],
-      ),
-    );
+    const {outName, inName, outId, inId} = substitutionPlayers(sub);
 
     const outPlayer = await playerByApi(outId);
     const inPlayer = await playerByApi(inId);

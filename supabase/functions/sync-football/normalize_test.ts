@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { n, status, fixtureScore, preserveKnown, uniqueEvents, collectFixtures } from "./normalize.ts";
+import { n, status, fixtureScore, preserveKnown, uniqueEvents, collectFixtures, substitutionPlayers } from "./normalize.ts";
 assert.equal(n(false), null);
 assert.equal(n(""), null);
 assert.equal(n("0"), 0);
@@ -27,4 +27,8 @@ assert.equal(fixtures.length,123);
 assert.equal((await collectFixtures(async()=>({data:[],pagination:{total:0,hasMore:false}}))).length,0);
 await assert.rejects(collectFixtures(async()=>({data:[{id:"repeated"}],pagination:{hasMore:true}})),/did not advance/);
 await assert.rejects(collectFixtures(async()=>({data:[{}],pagination:{hasMore:false}})),/missing its provider ID/);
-console.log("19 sync normalization and pagination checks passed");
+
+
+assert.deepEqual(substitutionPlayers({substitution:"A. C. Ganah | Y. Malede",substitutionPlayerId:"943993883 | 2170548856"}),{outName:"A. C. Ganah",inName:"Y. Malede",outId:"943993883",inId:"2170548856"});
+assert.deepEqual(substitutionPlayers({playerOut:"Out",playerIn:"In",playerOutId:"1",playerInId:"2"}),{outName:"Out",inName:"In",outId:"1",inId:"2"});
+console.log("21 sync normalization, pagination and substitution checks passed");

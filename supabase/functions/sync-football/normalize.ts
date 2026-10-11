@@ -205,3 +205,9 @@ export async function collectFixtures(fetchPage: (offset: number, limit: number)
   }
   throw new Error("GOAL fixture pagination exceeded its safety limit");
 }
+
+export function substitutionPlayers(sub: J) {
+  const names = s(pick(sub.substitution, sub.player, sub.players, sub.playerName))?.split("|").map(x=>x.trim()) ?? [];
+  const ids = s(pick(sub.substitutionPlayerId, sub.playerId, sub.playerIds))?.split("|").map(x=>x.trim()) ?? [];
+  return {outName:pick(sub.playerOut,sub.outPlayer,sub.outgoingPlayer,names[0]),inName:pick(sub.playerIn,sub.inPlayer,sub.incomingPlayer,names[1]),outId:s(pick(sub.playerOutId,sub.outPlayerId,sub.outgoingPlayerId,ids[0])),inId:s(pick(sub.playerInId,sub.inPlayerId,sub.incomingPlayerId,ids[1]))};
+}
