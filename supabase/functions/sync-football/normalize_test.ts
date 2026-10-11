@@ -32,3 +32,36 @@ await assert.rejects(collectFixtures(async()=>({data:[{}],pagination:{hasMore:fa
 assert.deepEqual(substitutionPlayers({substitution:"A. C. Ganah | Y. Malede",substitutionPlayerId:"943993883 | 2170548856"}),{outName:"A. C. Ganah",inName:"Y. Malede",outId:"943993883",inId:"2170548856"});
 assert.deepEqual(substitutionPlayers({playerOut:"Out",playerIn:"In",playerOutId:"1",playerInId:"2"}),{outName:"Out",inName:"In",outId:"1",inId:"2"});
 console.log("21 sync normalization, pagination and substitution checks passed");
+
+// Run the real request handler with a read-only database and provider doubles.
+const {readFile} = await import("node:fs/promises");
+const {stripTypeScriptTypes} = await import("node:module");
+const {runInNewContext} = await import("node:vm");
+const normalizerCode = (await readFile(new URL("./normalize.ts",import.meta.url),"utf8")).replace(/^export /gm, "");
+const handlerCode = (await readFile(new URL("./index.ts",import.meta.url),"utf8")).replace(/^import .*;\r?\n/gm, "").replace("type J = Record<string, any>;", "");
+let handler: any;
+let reads = 0;
+let requests = 0;
+const readOnlyDb = {from(table: string) {
+ assert.equal(table,"clubs"); reads++;
+ const query: any = {select(){return query;},eq(){return query;},not(){return Promise.resolve({data:[{id:"club",goal_team_id:"team",active:true}],error:null});}};
+ return query;
+}};
+runInNewContext(stripTypeScriptTypes(normalizerCode+"\n"+handlerCode), {
+ createClient:()=>readOnlyDb, Request,Response,AbortSignal,console,
+ Deno:{env:{get:(key: string)=>({SUPABASE_URL:"https://example.invalid",SUPABASE_SERVICE_ROLE_KEY:"test-service",GOAL_API_KEY:"test-provider"}[key])},serve:(fn: any)=>{handler=fn;}},
+ fetch:async(url: string)=>{requests++; assert.ok(url.endsWith("?limit=50&offset=0")); return Response.json({data:[{id:"fixture",leagueYear:"2026/2027",kickoffUtc:"2026-10-10T16:00:00Z",matchStatus:"FINISHED",homeTeamScore:"0",awayTeamScore:"2"}],pagination:{total:1,hasMore:false}});}
+});
+assert.equal((await handler(new Request("https://example.invalid",{method:"GET"}))).status,405);
+assert.equal((await handler(new Request("https://example.invalid",{method:"POST"}))).status,401);
+assert.equal(reads,0);
+assert.equal(requests,0);
+const authenticatedRequest = (body: any)=>new Request("https://example.invalid",{method:"POST",headers:{Authorization:"Bearer test-service"},body:JSON.stringify(body)});
+assert.equal((await handler(authenticatedRequest({phase:"invalid"}))).status,400);
+const previewResponse=await handler(authenticatedRequest({preview:true,phase:"fixtures"}));
+assert.equal(previewResponse.status,200);
+const previewBody=await previewResponse.json();
+assert.deepEqual(previewBody.fixtures,[{id:"fixture",kickoff:"2026-10-10T16:00:00.000Z",status:"finished",home:0,away:2}]);
+assert.equal(reads,1);
+assert.equal(requests,1);
+console.log("9 request authorization and read-only preview checks passed");
