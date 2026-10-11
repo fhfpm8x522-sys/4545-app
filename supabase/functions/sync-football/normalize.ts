@@ -54,6 +54,9 @@ export function status(v: any, live: any) {
   if (
     x === "ft" ||
     x === "aet" ||
+    x === "after_et" ||
+    x === "after_pen" ||
+    x === "after_penalties" ||
     x === "pen" ||
     x.includes("finished") ||
     x.includes("full time")
@@ -84,6 +87,7 @@ export function status(v: any, live: any) {
 
 export function fixtureScore(f: J) {
   const homeCandidates = [
+    f.homeTeamScore,
     f.homeScore,
     f.home_score,
     f.scoreHome,
@@ -99,9 +103,11 @@ export function fixtureScore(f: J) {
     f.score?.homeScore,
     f.scores?.home,
     f.result?.home,
+    f.homeTeamFtScore,
   ];
 
   const awayCandidates = [
+    f.awayTeamScore,
     f.awayScore,
     f.away_score,
     f.scoreAway,
@@ -117,6 +123,7 @@ export function fixtureScore(f: J) {
     f.score?.awayScore,
     f.scores?.away,
     f.result?.away,
+    f.awayTeamFtScore,
   ];
 
   let home: number | null = null;
@@ -174,4 +181,27 @@ export function uniqueEvents(rows: J[]): J[] {
   const byId = new Map<string, J>();
   for (const row of rows) if (row.goal_event_id) byId.set(row.goal_event_id, row);
   return [...byId.values()];
+}
+
+export async function collectFixtures(fetchPage: (offset: number, limit: number) => Promise<any>): Promise<J[]> {
+  const unique = new Map<string, J>();
+  let offset = 0;
+  const limit = 50;
+  for (let page = 0; page < 30; page++) {
+    const data = await fetchPage(offset, limit);
+    const rows = arr(data);
+    const before = unique.size;
+    for (const fixture of rows) {
+      const id = s(pick(fixture.id, fixture.fixtureId, fixture.apiId));
+      if (!id) throw new Error("Fixture is missing its provider ID");
+      unique.set(id, fixture);
+    }
+    const pagination = data?.pagination;
+    const total = n(pagination?.total);
+    const more = pagination?.hasMore;
+    if (more === false || (total !== null && offset + rows.length >= total) || (more !== true && total === null && rows.length < limit)) return [...unique.values()];
+    if (!rows.length || unique.size === before) throw new Error("GOAL fixture pagination did not advance");
+    offset += rows.length;
+  }
+  throw new Error("GOAL fixture pagination exceeded its safety limit");
 }

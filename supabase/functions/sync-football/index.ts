@@ -1,4 +1,4 @@
-import {s,n,b,pick,arr,status,fixtureScore,preserveKnown,uniqueEvents} from "./normalize.ts";
+import {s,n,b,pick,arr,status,fixtureScore,preserveKnown,uniqueEvents,collectFixtures} from "./normalize.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GOAL_BASE = "https://api.goal-api.com/v1";
@@ -108,42 +108,7 @@ async function goal(path: string) {
 }
 
 async function fixturesForTeam(teamId: string) {
-  const all: J[] = [];
-
-  for (let page = 1; page <= 30; page++) {
-    const data = await goal(`/teams/${teamId}/fixtures?page=${page}`);
-    const rows = arr(data);
-
-    if (!rows.length) break;
-
-    all.push(...rows);
-
-    const pages = n(
-      pick(
-        data?.pagination?.totalPages,
-        data?.pagination?.pages,
-        data?.totalPages,
-      ),
-    );
-
-    if (pages !== null && page >= pages) break;
-
-    const hasNext =
-      data?.pagination?.hasNext === true ||
-      data?.hasNext === true ||
-      s(data?.pagination?.next) !== null;
-
-    if (pages === null && !hasNext && rows.length < 50) break;
-  }
-
-  const unique = new Map<string, J>();
-
-  for (const f of all) {
-    const id = s(pick(f.id, f.fixtureId, f.apiId));
-    if (id) unique.set(id, f);
-  }
-
-  return [...unique.values()];
+  return collectFixtures((offset, limit) => goal(`/teams/${teamId}/fixtures?limit=${limit}&offset=${offset}`));
 }
 
 async function playersForTeam(teamId: string) {
