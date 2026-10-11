@@ -5,8 +5,12 @@ class HomeRepository {
   SupabaseClient get _db => Supabase.instance.client;
 
   Future<Map<String, dynamic>?> nextMatch(Club club) async {
+    final live = await _db.from('matches').select()
+        .or('home_club_id.eq.${club.id},away_club_id.eq.${club.id}')
+        .eq('status', 'live').order('kickoff').limit(1);
+    if (live.isNotEmpty) return Map<String, dynamic>.from(live.first);
     final now = DateTime.now().toUtc().toIso8601String();
-    final rows = await _db.from('matches').select().or('home_club_id.eq.${club.id},away_club_id.eq.${club.id}').gte('kickoff', now).inFilter('status', ['scheduled','live']).order('kickoff').limit(1);
+    final rows = await _db.from('matches').select().or('home_club_id.eq.${club.id},away_club_id.eq.${club.id}').gte('kickoff', now).eq('status', 'scheduled').order('kickoff').limit(1);
     return (rows as List).isEmpty ? null : Map<String,dynamic>.from(rows.first);
   }
 
@@ -16,7 +20,7 @@ class HomeRepository {
   }
 
   Future<Map<String, dynamic>?> activePoll(Club club) async {
-    final rows = await _db.from('polls').select().eq('club_id',club.id).eq('status','published').order('created_at',ascending:false).limit(1);
+    final rows = await _db.from('polls').select().eq('club_id',club.id).eq('status','published').or('closes_at.is.null,closes_at.gt.${DateTime.now().toUtc().toIso8601String()}').order('created_at',ascending:false).limit(1);
     return (rows as List).isEmpty ? null : Map<String,dynamic>.from(rows.first);
   }
 

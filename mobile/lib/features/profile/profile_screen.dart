@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/club.dart';
@@ -641,6 +642,57 @@ class _NotificationSettingsScreenState
   bool transfers = true;
   bool injuries = true;
 
+  SharedPreferences? preferences;
+  late final String preferencePrefix;
+  bool saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    preferencePrefix = 'notifications.${Supabase.instance.client.auth.currentUser?.id ?? 'guest'}.';
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    try {
+      final stored = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      setState(() {
+        preferences = stored;
+        matchReminder = stored.getBool('${preferencePrefix}matchReminder') ?? true;
+        kickoff = stored.getBool('${preferencePrefix}kickoff') ?? true;
+        goals = stored.getBool('${preferencePrefix}goals') ?? true;
+        lineup = stored.getBool('${preferencePrefix}lineup') ?? true;
+        news = stored.getBool('${preferencePrefix}news') ?? true;
+        official = stored.getBool('${preferencePrefix}official') ?? true;
+        transfers = stored.getBool('${preferencePrefix}transfers') ?? true;
+        injuries = stored.getBool('${preferencePrefix}injuries') ?? true;
+      });
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא הצלחנו לטעון את ההעדפות.')),
+      );
+    }
+  }
+
+  Future<void> _savePreference(String key, bool value, VoidCallback apply) async {
+    final stored = preferences;
+    if (stored == null || saving) return;
+    setState(() => saving = true);
+    try {
+      if (!await stored.setBool('$preferencePrefix$key', value)) {
+        throw Exception('Preferences were not saved');
+      }
+      if (mounted) setState(apply);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא הצלחנו לשמור את ההעדפה. נסה שוב.')),
+      );
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -662,9 +714,7 @@ class _NotificationSettingsScreenState
             'תזכורת לפני משחק',
             matchReminder,
             (value) {
-              setState(() {
-                matchReminder = value;
-              });
+              _savePreference('matchReminder', value, () => matchReminder = value);
             },
           ),
 
@@ -672,9 +722,7 @@ class _NotificationSettingsScreenState
             'שריקת פתיחה',
             kickoff,
             (value) {
-              setState(() {
-                kickoff = value;
-              });
+              _savePreference('kickoff', value, () => kickoff = value);
             },
           ),
 
@@ -682,9 +730,7 @@ class _NotificationSettingsScreenState
             'שערים',
             goals,
             (value) {
-              setState(() {
-                goals = value;
-              });
+              _savePreference('goals', value, () => goals = value);
             },
           ),
 
@@ -692,9 +738,7 @@ class _NotificationSettingsScreenState
             'פרסום הרכב',
             lineup,
             (value) {
-              setState(() {
-                lineup = value;
-              });
+              _savePreference('lineup', value, () => lineup = value);
             },
           ),
 
@@ -712,9 +756,7 @@ class _NotificationSettingsScreenState
             'חדשות חשובות',
             news,
             (value) {
-              setState(() {
-                news = value;
-              });
+              _savePreference('news', value, () => news = value);
             },
           ),
 
@@ -722,9 +764,7 @@ class _NotificationSettingsScreenState
             'הודעות רשמיות',
             official,
             (value) {
-              setState(() {
-                official = value;
-              });
+              _savePreference('official', value, () => official = value);
             },
           ),
 
@@ -732,9 +772,7 @@ class _NotificationSettingsScreenState
             'העברות',
             transfers,
             (value) {
-              setState(() {
-                transfers = value;
-              });
+              _savePreference('transfers', value, () => transfers = value);
             },
           ),
 
@@ -742,16 +780,14 @@ class _NotificationSettingsScreenState
             'פציעות',
             injuries,
             (value) {
-              setState(() {
-                injuries = value;
-              });
+              _savePreference('injuries', value, () => injuries = value);
             },
           ),
 
           const SizedBox(height: 16),
 
           const Text(
-            'שמירת ההעדפות וחיבורן ל־Push יופעלו עם שירות ההתראות.',
+            'ההעדפות נשמרות במכשיר הזה. קבלת התראות Push תופעל עם חיבור שירות ההתראות.',
             style: TextStyle(
               color: Colors.white38,
               fontSize: 12,
@@ -771,7 +807,7 @@ class _NotificationSettingsScreenState
       contentPadding: EdgeInsets.zero,
       title: Text(title),
       value: value,
-      onChanged: onChanged,
+      onChanged: preferences == null || saving ? null : onChanged,
     );
   }
 }

@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../models/club.dart';
+
 import '../../repositories/app_repository.dart';
 import '../community/community_screen.dart';
+
+String _playerName(String? value) {
+  final clean = value?.trim() ?? '';
+  return clean.isEmpty ? 'שחקן' : clean;
+}
 
 class TeamScreen extends StatefulWidget {
   final Club club;
@@ -161,6 +167,9 @@ class _TeamScreenState extends State<TeamScreen> {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: repository.matches(widget.club.id),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('לא הצלחנו לטעון את הנתונים. נסה שוב.'));
+        }
         if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(),
@@ -170,7 +179,8 @@ class _TeamScreenState extends State<TeamScreen> {
         final matches = snapshot.data!;
 
         final finished = matches.where(
-          (match) => match['status'] == 'finished',
+          (match) => match['status'] == 'finished' &&
+              match['home_score'] is num && match['away_score'] is num,
         );
 
         int wins = 0;
@@ -303,6 +313,9 @@ class _TeamScreenState extends State<TeamScreen> {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: repository.players(widget.club.id),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('לא הצלחנו לטעון את הנתונים. נסה שוב.'));
+        }
         if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(),
@@ -359,7 +372,7 @@ class _TeamScreenState extends State<TeamScreen> {
                         : null,
                   ),
                   title: Text(
-                    player['name'] ?? '',
+                    _playerName(player['name_he']?.toString() ?? player['name']?.toString()),
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                     ),
@@ -395,6 +408,9 @@ class _TeamScreenState extends State<TeamScreen> {
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: repository.stats(widget.club.id),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('לא הצלחנו לטעון את הנתונים. נסה שוב.'));
+        }
         if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(),
@@ -445,7 +461,7 @@ class _TeamScreenState extends State<TeamScreen> {
                       ),
                     ),
                     title: Text(
-                      player?['name'] ?? 'שחקן',
+                      _playerName(player?['name_he']?.toString() ?? player?['name']?.toString()),
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
                       ),
@@ -478,6 +494,9 @@ class _TeamScreenState extends State<TeamScreen> {
         repository.chants(widget.club.id),
       ]),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('לא הצלחנו לטעון את הנתונים. נסה שוב.'));
+        }
         if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(),
@@ -631,7 +650,7 @@ class PlayerScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          player['name'] ?? 'שחקן',
+          _playerName(player['name_he']?.toString() ?? player['name']?.toString()),
         ),
       ),
       body: ListView(

@@ -19,6 +19,20 @@ class _NewsScreenState extends State<NewsScreen> {
   final repository = AppRepository();
 
   String selectedFilter = 'הכול';
+  late Future<List<Map<String, dynamic>>> newsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    newsFuture = repository.news(widget.club.id);
+  }
+
+  Future<void> _refresh() async {
+    final future = repository.news(widget.club.id);
+    setState(() => newsFuture = future);
+    await future;
+  }
+
 
   final filters = const [
     'הכול',
@@ -33,7 +47,7 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: FutureBuilder<List<Map<String, dynamic>>>(
-        future: repository.news(widget.club.id),
+        future: newsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState ==
               ConnectionState.waiting) {
@@ -59,9 +73,7 @@ class _NewsScreenState extends State<NewsScreen> {
           }).toList();
 
           return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {});
-            },
+            onRefresh: _refresh,
             child: ListView(
               physics:
                   const AlwaysScrollableScrollPhysics(),
