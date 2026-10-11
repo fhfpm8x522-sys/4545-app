@@ -1,0 +1,34 @@
+name: Validate Flutter
+on:
+  pull_request:
+  push:
+    branches: ['codex/**']
+permissions:
+  contents: read
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Prepare non-production build configuration
+        working-directory: mobile
+        run: |
+          printf 'SUPABASE_URL=\nSUPABASE_ANON_KEY=\n' > .env
+          flutter create --platforms=web --project-name forty_five_forty_five .
+      - run: flutter pub get
+        working-directory: mobile
+      - run: flutter analyze lib --no-fatal-infos --no-fatal-warnings
+        working-directory: mobile
+      - run: flutter test test/match_rules_test.dart test/match_center_test.dart
+        working-directory: mobile
+      - run: flutter build web --release --base-href "/4545-app/"
+        working-directory: mobile
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node supabase/functions/sync-football/normalize_test.ts
