@@ -211,3 +211,17 @@ export function substitutionPlayers(sub: J) {
   const ids = s(pick(sub.substitutionPlayerId, sub.playerId, sub.playerIds))?.split("|").map(x=>x.trim()) ?? [];
   return {outName:pick(sub.playerOut,sub.outPlayer,sub.outgoingPlayer,names[0]),inName:pick(sub.playerIn,sub.inPlayer,sub.incomingPlayer,names[1]),outId:s(pick(sub.playerOutId,sub.outPlayerId,sub.outgoingPlayerId,ids[0])),inId:s(pick(sub.playerInId,sub.inPlayerId,sub.incomingPlayerId,ids[1]))};
 }
+
+export function eventMinute(event: J): number | null {
+  const raw = pick(event.minute, event.time, event.elapsed);
+  const direct = n(raw);
+  if (direct !== null && direct >= 0) return direct;
+  const added = typeof raw === "string" ? raw.match(/^(\d+)\s*\+\s*(\d+)$/) : null;
+  if (added) return Number(added[1])+Number(added[2]);
+  const fallback = n(event.timeNum);
+  return fallback !== null && fallback >= 0 ? fallback : null;
+}
+
+export function stableEventId(fixtureId: string, event: J): string {
+  return JSON.stringify([fixtureId,event.event_type,event.minute,event.team_side,event.player_id ?? event.player_name ?? null,event.secondary_player_id ?? event.secondary_player_name ?? null]);
+}

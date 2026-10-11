@@ -1,4 +1,5 @@
-import {s,n,b,pick,arr,status,fixtureScore,preserveKnown,uniqueEvents,collectFixtures,substitutionPlayers} from "./normalize.ts";
+import { hasServerAuthorization } from "./auth.ts";
+import {s,n,b,pick,arr,status,fixtureScore,preserveKnown,uniqueEvents,collectFixtures,substitutionPlayers,eventMinute,stableEventId} from "./normalize.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const GOAL_BASE = "https://api.goal-api.com/v1";
@@ -25,6 +26,10 @@ const TEAM_HE: Record<string, string> = {
   "Hapoel Haifa": "הפועל חיפה",
   "Hapoel Jerusalem": "הפועל ירושלים",
   "Bnei Sakhnin": "בני סכנין",
+  "Sakhnin": "בני סכנין",
+  "Netanya": "מכבי נתניה",
+  "Maccabi Petah Tikva": "מכבי פתח תקווה",
+  "Hap. Ramat Gan": "הפועל רמת גן",
   "Hapoel Petah Tikva": "הפועל פתח תקווה",
   "Ironi Kiryat Shmona": "עירוני קריית שמונה",
   "Kiryat Shmona": "עירוני קריית שמונה",
@@ -589,7 +594,7 @@ function playerDisplay(player: J | null, fallback: any) {
 }
 
 function minute(x: J) {
-  return n(pick(x.minute, x.time, x.elapsed));
+  return eventMinute(x);
 }
 
 function eventSide(x: J): "home" | "away" | null {
@@ -789,10 +794,25 @@ async function syncMatchEvents(match: J) {
 
   if (!output.length) return 0;
 
+  // Provider event IDs can change after a refresh. Reuse the newest matching
+  // row and a stable identity so repeated syncs do not append the same event.
+  const existing = await db.from("match_events").select("*").eq("match_id", match.id);
+  if (existing.error) throw existing.error;
+  const byIdentity = new Map<string, J>();
+  for (const row of existing.data ?? []) {
+    const identity = stableEventId(fixtureId, row);
+    const previous = byIdentity.get(identity);
+    if (!previous || Number(row.id) > Number(previous.id)) byIdentity.set(identity, row);
+  }
+  for (const row of output) {
+    row.goal_event_id = stableEventId(fixtureId, row);
+    const previous = byIdentity.get(row.goal_event_id);
+    if (previous) row.id = previous.id;
+  }
   const save = await db
     .from("match_events")
     .upsert(uniqueEvents(output), {
-      onConflict: "goal_event_id",
+      onConflict: "id", defaultToNull: false,
     });
 
   if (save.error) throw save.error;
@@ -806,7 +826,7 @@ async function syncMatchEvents(match: J) {
 
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  if (!SERVICE_KEY || request.headers.get("Authorization") !== "Bearer " + SERVICE_KEY) return new Response("Unauthorized", { status: 401 });
+  if (!hasServerAuthorization(request, SERVICE_KEY, Deno.env.get("SUPABASE_SECRET_KEYS"))) return new Response("Unauthorized", { status: 401 });
   const started = Date.now();
 
   try {
@@ -865,7 +885,7 @@ Deno.serve(async (request: Request) => {
 
     const fixtureIdFilter = s(options.fixtureId);
     const fixtures = [...fixtureMap.values()].filter(f => !fixtureIdFilter || s(pick(f.id,f.fixtureId,f.apiId)) === fixtureIdFilter);
-    if (preview) return Response.json({success:true,preview:true,phase,season:SEASON,fixturesFetched:totalFetched,fixturesForSeason:fixtures.length,fixtures:fixtures.map(f=>({id:s(pick(f.id,f.fixtureId,f.apiId)),kickoff:fixtureKickoff(f),status:status(pick(f.matchStatus,f.status),pick(f.matchLive,f.live)),...fixtureScore(f)}))});
+    if (preview) return Response.json({success:true,preview:true,phase,season:SEASON,fixturesFetched:totalFetched,fixturesForSeason:fixtures.length,fixtures:fixtures.map(f=>({id:s(pick(f.id,f.fixtureId,f.apiId)),kickoff:fixtureKickoff(f),status:status(pick(f.matchStatus,f.status),pick(f.matchLive,f.live)),homeTeamId:homeId(f),awayTeamId:awayId(f),...fixtureScore(f)}))});
 
     // --------------------------------------------------------
     // DISCOVER ALL TEAMS
@@ -913,8 +933,14 @@ Deno.serve(async (request: Request) => {
     let rosterTeamFailures = 0;
 
     const rosterErrors: J[] = [];
+    const rosterTeamResults: J[] = [];
+    let rosterTeamsChecked = 0;
+    const selectedTeamId = s(options.teamId);
+    const rosterTeams = new Map([...teams].filter(([id]) => !selectedTeamId || id === selectedTeamId));
+    if (phase === "rosters" && selectedTeamId && !rosterTeams.size) return Response.json({error:"Team is not part of the selected season fixtures"},{status:400});
 
-    for (const [teamId, info] of (phase === "all" || phase === "rosters" ? teams : new Map())) {
+    for (const [teamId, info] of (phase === "all" || phase === "rosters" ? rosterTeams : new Map())) {
+      rosterTeamsChecked++;
       try {
         const r = await syncRoster(teamId, info.clubId);
 
@@ -922,6 +948,7 @@ Deno.serve(async (request: Request) => {
         rosterSaved += r.saved;
         rosterFailedPlayers += r.failed;
         rosterImages += r.images;
+        rosterTeamResults.push({teamId,team:info.name,...r});
       } catch (e) {
         rosterTeamFailures++;
 
@@ -1037,7 +1064,8 @@ Deno.serve(async (request: Request) => {
           },
 
           players: {
-            teamsChecked: teams.size,
+            teamsChecked: rosterTeamsChecked,
+            teams: rosterTeamResults,
             teamFailures: rosterTeamFailures,
             fetched: rosterFetched,
             insertedOrUpdated: rosterSaved,
