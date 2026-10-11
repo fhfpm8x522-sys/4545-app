@@ -814,6 +814,11 @@ Deno.serve(async (request: Request) => {
     if (!SERVICE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY missing");
     if (!GOAL_KEY) throw new Error("GOAL_API_KEY missing");
 
+    let options: J = {};
+    try { options = await request.json(); } catch { /* Empty body keeps the existing full sync behavior. */ }
+    const phase = s(options.phase) ?? "all";
+    if (!["all", "fixtures", "rosters", "events"].includes(phase)) return Response.json({error:"Invalid sync phase"},{status:400});
+    const preview = options.preview === true;
     const clubs = await loadClubs();
 
     if (!clubs.length) {
@@ -854,7 +859,9 @@ Deno.serve(async (request: Request) => {
       });
     }
 
-    const fixtures = [...fixtureMap.values()];
+    const fixtureIdFilter = s(options.fixtureId);
+    const fixtures = [...fixtureMap.values()].filter(f => !fixtureIdFilter || s(pick(f.id,f.fixtureId,f.apiId)) === fixtureIdFilter);
+    if (preview) return Response.json({success:true,preview:true,phase,season:SEASON,fixturesFetched:totalFetched,fixturesForSeason:fixtures.length,fixtures:fixtures.map(f=>({id:s(pick(f.id,f.fixtureId,f.apiId)),kickoff:fixtureKickoff(f),status:status(pick(f.matchStatus,f.status),pick(f.matchLive,f.live)),...fixtureScore(f)}))});
 
     // --------------------------------------------------------
     // DISCOVER ALL TEAMS
@@ -903,7 +910,7 @@ Deno.serve(async (request: Request) => {
 
     const rosterErrors: J[] = [];
 
-    for (const [teamId, info] of teams) {
+    for (const [teamId, info] of (phase === "all" || phase === "rosters" ? teams : new Map())) {
       try {
         const r = await syncRoster(teamId, info.clubId);
 
@@ -929,7 +936,7 @@ Deno.serve(async (request: Request) => {
     let matchesSaved = 0;
     const matchErrors: J[] = [];
 
-    for (const f of fixtures) {
+    for (const f of (phase === "all" || phase === "fixtures" ? fixtures : [])) {
       try {
         const row = await buildMatch(f, clubs);
 
@@ -990,7 +997,8 @@ Deno.serve(async (request: Request) => {
 
     const eventErrors: J[] = [];
 
-    for (const match of matchesQuery.data ?? []) {
+    for (const match of (phase === "all" || phase === "events" ? matchesQuery.data ?? [] : [])) {
+      if (fixtureIdFilter && match.goal_fixture_id !== fixtureIdFilter) continue;
       eventsChecked++;
 
       try {
@@ -1008,7 +1016,8 @@ Deno.serve(async (request: Request) => {
     return new Response(
       JSON.stringify(
         {
-          success: true,
+          success: matchErrors.length === 0 && rosterTeamFailures === 0 && rosterFailedPlayers === 0 && eventsFailed === 0,
+          phase,
           season: SEASON,
 
           clubs: clubs.length,
