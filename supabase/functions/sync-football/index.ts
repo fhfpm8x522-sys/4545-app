@@ -804,18 +804,18 @@ async function syncMatchEvents(match: J) {
     const previous = byIdentity.get(identity);
     if (!previous || Number(row.id) > Number(previous.id)) byIdentity.set(identity, row);
   }
-  for (const row of output) {
-    row.goal_event_id = stableEventId(fixtureId, row);
-    const previous = byIdentity.get(row.goal_event_id);
-    if (previous) row.id = previous.id;
+  const normalized = uniqueEvents(output.map(row => ({...row, goal_event_id: stableEventId(fixtureId, row)})));
+  // The live id column is GENERATED ALWAYS: update existing rows directly,
+  // never include an explicit id in an INSERT/UPSERT payload.
+  for (let offset = 0; offset < normalized.length; offset += 8) {
+    const saves = await Promise.all(normalized.slice(offset, offset + 8).map(row => {
+      const previous = byIdentity.get(row.goal_event_id);
+      return previous
+        ? db.from("match_events").update(row).eq("id", previous.id)
+        : db.from("match_events").upsert(row, {onConflict: "goal_event_id"});
+    }));
+    for (const save of saves) if (save.error) throw save.error;
   }
-  const save = await db
-    .from("match_events")
-    .upsert(uniqueEvents(output), {
-      onConflict: "id", defaultToNull: false,
-    });
-
-  if (save.error) throw save.error;
 
   return output.length;
 }
