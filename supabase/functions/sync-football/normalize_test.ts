@@ -65,3 +65,7 @@ assert.deepEqual(previewBody.fixtures,[{id:"fixture",kickoff:"2026-10-10T16:00:0
 assert.equal(reads,1);
 assert.equal(requests,1);
 console.log("9 request authorization and read-only preview checks passed");
+
+assert.equal((await handler(new Request("https://example.invalid",{method:"POST",headers:{Authorization:"Bearer test-service"},body:"invalid-json"}))).status,400);
+assert.equal((await handler(authenticatedRequest({preview:"true"}))).status,400);
+console.log("2 malformed request safety checks passed");

@@ -815,7 +815,11 @@ Deno.serve(async (request: Request) => {
     if (!GOAL_KEY) throw new Error("GOAL_API_KEY missing");
 
     let options: J = {};
-    try { options = await request.json(); } catch { /* Empty body keeps the existing full sync behavior. */ }
+    const body = await request.text();
+    if (body.trim()) {
+      try { options = JSON.parse(body); } catch { return Response.json({error:"Invalid JSON body"},{status:400}); }
+    }
+    if (!options || typeof options !== "object" || Array.isArray(options) || (options.preview !== undefined && typeof options.preview !== "boolean")) return Response.json({error:"Invalid sync options"},{status:400});
     const phase = s(options.phase) ?? "all";
     if (!["all", "fixtures", "rosters", "events"].includes(phase)) return Response.json({error:"Invalid sync phase"},{status:400});
     const preview = options.preview === true;
