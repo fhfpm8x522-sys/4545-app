@@ -532,9 +532,9 @@ async function buildMatch(f: J, clubs: J[]) {
 
     kickoff: fixtureKickoff(f),
 
-    stadium: s(pick(f.stadium, f.venue?.name)),
+    stadium: s(pick(f.matchStadium, f.stadium, f.venue?.name)),
 
-    status: status(rawStatus, f.live),
+    status: status(rawStatus, pick(f.matchLive, f.live)),
 
     home_score: score.home,
     away_score: score.away,
