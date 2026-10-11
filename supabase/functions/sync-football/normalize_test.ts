@@ -1,0 +1,13 @@
+import { strict as assert } from "node:assert";
+import { n, status, fixtureScore, preserveKnown, uniqueEvents } from "./normalize.ts";
+assert.equal(n(false), null);
+assert.equal(n(""), null);
+assert.equal(n("0"), 0);
+assert.equal(status("FT", true), "finished");
+assert.equal(status("cancelled", true), "cancelled");
+assert.deepEqual(fixtureScore({homeScore:false,score:"2 - 1"}), {home:2,away:1});
+assert.equal(preserveKnown({home_score:2},{home_score:null}).home_score, 2);
+assert.equal(preserveKnown({image_url:"saved"},{image_url:null}).image_url, "saved");
+assert.equal(preserveKnown({club_id:"old"},{club_id:null}).club_id, null);
+assert.equal(uniqueEvents([{goal_event_id:"a"},{goal_event_id:"a"}]).length, 1);
+console.log("10 sync normalization checks passed");
