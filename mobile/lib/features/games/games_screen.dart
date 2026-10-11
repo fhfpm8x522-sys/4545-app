@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../models/match_rules.dart';
 
 import '../../models/club.dart';
 import '../../repositories/app_repository.dart';
@@ -426,22 +428,64 @@ class MatchCard extends StatelessWidget {
 // ============================================================
 
 class MatchCenter extends StatefulWidget {
-  final Map<String, dynamic> match;
-  final Club club;
-
-  const MatchCenter({
-    super.key,
-    required this.match,
-    required this.club,
-  });
-
-  @override
-  State<MatchCenter> createState() =>
-      _MatchCenterState();
+ final Map<String,dynamic> match;
+ final Club club;
+ final AppRepository? repository;
+ const MatchCenter({super.key, required this.match, required this.club, this.repository});
+ @override
+ State<MatchCenter> createState()=>_MatchCenterState();
 }
+class _MatchCenterState extends State<MatchCenter> with WidgetsBindingObserver {
+ late final AppRepository repository;
+ late Map<String,dynamic> currentMatch;
+ late Future<List<Map<String,dynamic>>> eventsFuture;
+ late Future<List<Map<String,dynamic>>> chatFuture;
+ Timer? refreshTimer;
+ bool refreshing=false;
+ bool submitting=false;
+ @override
+ void initState(){super.initState(); repository=widget.repository??AppRepository(); currentMatch=Map.of(widget.match); eventsFuture=Future.value([]); chatFuture=Future.value([]); WidgetsBinding.instance.addObserver(this); refresh(silent:true); _startTimer();}
+ void _startTimer(){refreshTimer?.cancel(); refreshTimer=Timer.periodic(const Duration(seconds:30),(_)=>refresh(silent:true));}
+ @override
+ void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){refresh(silent:true);_startTimer();}else{refreshTimer?.cancel();}}
+  Future<void> refresh({bool silent = false}) async {
+    if (refreshing || !mounted) return;
+    refreshing = true;
+    try {
+      final latest = await repository.match(currentMatch['id'].toString());
+      if (!mounted) return;
+      setState(() {
+        if (latest != null) currentMatch = latest;
+        eventsFuture = finished || live
+            ? repository.events(currentMatch['id'].toString())
+            : Future.value([]);
+        chatFuture = repository.chat(match: currentMatch['id'].toString());
+      });
+      await Future.wait([eventsFuture, chatFuture]);
+    } catch (_) {
+      if (mounted && !silent) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('הרענון נכשל. נסה שוב.')),
+      );
+    } finally {
+      refreshing = false;
+    }
+  }
 
-class _MatchCenterState extends State<MatchCenter> {
-  final repository = AppRepository();
+  Future<void> _submit(Future<void> Function() action, String success) async {
+    if (submitting) return;
+    setState(() => submitting = true);
+    try {
+      await action();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('לא הצלחנו לשמור. בדוק שאתה מחובר ונסה שוב.')),
+      );
+    } finally {
+      if (mounted) setState(() => submitting = false);
+    }
+  }
 
   final messageController = TextEditingController();
 
@@ -450,28 +494,27 @@ class _MatchCenterState extends State<MatchCenter> {
 
   @override
   void dispose() {
+    refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     messageController.dispose();
     super.dispose();
   }
 
   DateTime? get kickoff {
     return DateTime.tryParse(
-      widget.match['kickoff']?.toString() ?? '',
+      currentMatch['kickoff']?.toString() ?? '',
     )?.toLocal();
   }
 
   String get status =>
-      widget.match['status']?.toString().toLowerCase() ??
+      currentMatch['status']?.toString().toLowerCase() ??
       '';
 
   bool get finished => status == 'finished';
 
   bool get live => status == 'live';
 
-  bool get canPredict =>
-      !finished &&
-      !live &&
-      status != 'cancelled';
+  bool get canPredict => MatchRules.canPredict(currentMatch, DateTime.now());
 
   String get dateText {
     final date = kickoff;
@@ -489,7 +532,7 @@ class _MatchCenterState extends State<MatchCenter> {
 
   @override
   Widget build(BuildContext context) {
-    final match = widget.match;
+    final match = currentMatch;
 
     final homeName = FootballHebrew.team(
       match['home_name']?.toString(),
@@ -501,6 +544,7 @@ class _MatchCenterState extends State<MatchCenter> {
 
     return Scaffold(
       appBar: AppBar(
+        actions: [IconButton(onPressed: refresh, tooltip: 'רענון', icon: const Icon(Icons.refresh))],
         title: const Text(
           'MATCH CENTER',
           style: TextStyle(
@@ -508,7 +552,10 @@ class _MatchCenterState extends State<MatchCenter> {
           ),
         ),
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: refresh,
+        child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           14,
           10,
@@ -531,9 +578,7 @@ class _MatchCenterState extends State<MatchCenter> {
 
           if (finished || live)
             FutureBuilder<List<Map<String, dynamic>>>(
-              future: repository.events(
-                match['id'].toString(),
-              ),
+              future: eventsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState ==
                         ConnectionState.waiting &&
@@ -597,21 +642,10 @@ class _MatchCenterState extends State<MatchCenter> {
                   awayPrediction++;
                 });
               },
-              onSubmit: () async {
-                await repository.prediction(
-                  match['id'].toString(),
-                  homePrediction,
-                  awayPrediction,
-                );
-
-                if (!context.mounted) return;
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('הניחוש נשמר 🔥'),
-                  ),
-                );
-              },
+              onSubmit: submitting ? () {} : () => _submit(
+                () => repository.prediction(match['id'].toString(), homePrediction, awayPrediction),
+                'הניחוש נשמר 🔥',
+              ),
             ),
 
           Card(
@@ -620,21 +654,10 @@ class _MatchCenterState extends State<MatchCenter> {
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await repository.attendance(
-                      match['id'].toString(),
-                    );
-
-                    if (!context.mounted) return;
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'המשחק נוסף לרשימת "הייתי במשחק"',
-                        ),
-                      ),
-                    );
-                  },
+                  onPressed: submitting ? null : () => _submit(
+                    () => repository.attendance(match['id'].toString()),
+                    'המשחק נוסף לרשימת "הייתי במשחק"',
+                  ),
                   icon: const Icon(Icons.stadium),
                   label: const Text('הייתי במשחק'),
                 ),
@@ -660,20 +683,15 @@ class _MatchCenterState extends State<MatchCenter> {
               hintText: 'כתוב הודעה...',
               suffixIcon: IconButton(
                 icon: const Icon(Icons.send),
-                onPressed: () async {
-                  final text =
-                      messageController.text.trim();
-
+                onPressed: submitting ? null : () async {
+                  final text = messageController.text.trim();
                   if (text.isEmpty) return;
-
-                  await repository.message(
-                    match: match['id'].toString(),
-                    body: text,
-                  );
-
-                  messageController.clear();
-
-                  setState(() {});
+                  await _submit(() async {
+                    await repository.message(match: match['id'].toString(), body: text);
+                    if (!mounted) return;
+                    messageController.clear();
+                    await refresh();
+                  }, 'ההודעה נשלחה');
                 },
               ),
             ),
@@ -682,10 +700,10 @@ class _MatchCenterState extends State<MatchCenter> {
           const SizedBox(height: 10),
 
           FutureBuilder<List<Map<String, dynamic>>>(
-            future: repository.chat(
-              match: match['id'].toString(),
-            ),
+            future: chatFuture,
             builder: (context, snapshot) {
+              if (snapshot.hasError) return const _SmallError('לא הצלחנו לטעון את הצ׳אט');
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
               final messages = snapshot.data ?? [];
 
               if (messages.isEmpty) {
@@ -730,6 +748,7 @@ class _MatchCenterState extends State<MatchCenter> {
             },
           ),
         ],
+        ),
       ),
     );
   }
