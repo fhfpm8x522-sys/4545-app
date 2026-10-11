@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/match_rules.dart';
 
 class AppRepository {
   final SupabaseClient client = Supabase.instance.client;
@@ -66,7 +67,8 @@ class AppRepository {
           ''',
         )
         .eq('match_id', matchId)
-        .order('minute', ascending: false);
+        .order('minute', ascending: false)
+        .order('id', ascending: false);
 
     return List<Map<String, dynamic>>.from(rows);
   }
@@ -249,12 +251,13 @@ class AppRepository {
     final rows = await query
         .order(
           'created_at',
-          ascending: true,
+          ascending: false,
         )
+        .order('id', ascending: false)
         .limit(200);
 
     final messages =
-        List<Map<String, dynamic>>.from(rows);
+        List<Map<String, dynamic>>.from(rows.reversed);
 
     await _attachPublicProfiles(
       messages,
@@ -308,6 +311,15 @@ class AppRepository {
       throw Exception(
         'צריך להתחבר כדי לשלוח ניחוש.',
       );
+    }
+
+    if (homeScore < 0 || awayScore < 0) {
+      throw Exception('התוצאה חייבת להיות אפס או יותר.');
+    }
+    final currentMatch = await match(matchId);
+    if (currentMatch == null ||
+        !MatchRules.canPredict(currentMatch, DateTime.now())) {
+      throw Exception('הניחושים נסגרו למשחק הזה.');
     }
 
     await client.from('predictions').upsert(
