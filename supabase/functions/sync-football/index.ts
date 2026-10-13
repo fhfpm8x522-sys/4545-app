@@ -354,7 +354,7 @@ async function fixturesForTeam(teamId: string) {
 }
 
 async function playersForTeam(teamId: string) {
-  return arr(await goal(`/teams/${teamId}/players`));
+  return collectFixtures((offset,limit)=>goal(`/teams/${teamId}/players?limit=${limit}&offset=${offset}`));
 }
 
 // ============================================================
@@ -1063,7 +1063,13 @@ async function syncMatchEvents(match: J) {
 
 Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  if (!hasServerAuthorization(request, SERVICE_KEY, Deno.env.get("SUPABASE_SECRET_KEYS"))) return new Response("Unauthorized", { status: 401 });
+  if (!hasServerAuthorization(request, SERVICE_KEY, Deno.env.get("SUPABASE_SECRET_KEYS"))) {
+    const authorization=request.headers.get('authorization')??'';
+    if(!authorization.startsWith('Bearer '))return new Response('Unauthorized',{status:401});
+    const caller=createClient(SUPABASE_URL,Deno.env.get('SUPABASE_ANON_KEY')!,{global:{headers:{Authorization:authorization}}});
+    const privileged=await caller.from('football_cache').select('cache_key').limit(1);
+    if(privileged.error)return new Response('Unauthorized',{status:401});
+  }
   const started = Date.now();
 
   try {
@@ -1080,7 +1086,9 @@ Deno.serve(async (request: Request) => {
     const phase = s(options.phase) ?? "all";
     if (!["all", "fixtures", "rosters", "events"].includes(phase)) return Response.json({error:"Invalid sync phase"},{status:400});
     const preview = options.preview === true;
-    const clubs = await loadClubs();
+    const selectedTeamId = s(options.teamId);
+    const allClubs = await loadClubs();
+    const clubs = allClubs.filter(c=>!selectedTeamId||c.goal_team_id===selectedTeamId);
 
     if (!clubs.length) {
       throw new Error("No connected active clubs");
@@ -1141,7 +1149,7 @@ Deno.serve(async (request: Request) => {
       const a = awayId(f);
 
       if (h) {
-        const c = findClub(clubs, h, homeApi(f));
+        const c = findClub(allClubs, h, homeApi(f));
 
         teams.set(h, {
           clubId: c?.id ?? null,
@@ -1150,7 +1158,7 @@ Deno.serve(async (request: Request) => {
       }
 
       if (a) {
-        const c = findClub(clubs, a, awayApi(f));
+        const c = findClub(allClubs, a, awayApi(f));
 
         teams.set(a, {
           clubId: c?.id ?? null,
@@ -1172,7 +1180,6 @@ Deno.serve(async (request: Request) => {
     const rosterErrors: J[] = [];
     const rosterTeamResults: J[] = [];
     let rosterTeamsChecked = 0;
-    const selectedTeamId = s(options.teamId);
     const rosterTeams = new Map([...teams].filter(([id]) => !selectedTeamId || id === selectedTeamId));
     if (phase === "rosters" && selectedTeamId && !rosterTeams.size) return Response.json({error:"Team is not part of the selected season fixtures"},{status:400});
 
@@ -1206,7 +1213,7 @@ Deno.serve(async (request: Request) => {
 
     for (const f of (phase === "all" || phase === "fixtures" ? fixtures : [])) {
       try {
-        const row = await buildMatch(f, clubs);
+        const row = await buildMatch(f, allClubs);
 
         if (!row) continue;
 
@@ -1248,12 +1255,15 @@ Deno.serve(async (request: Request) => {
     // EVENTS
     // --------------------------------------------------------
 
-    const matchesQuery = await db
+    let eventQuery = db
       .from("matches")
       .select("id,goal_fixture_id,kickoff,status")
       .not("goal_fixture_id", "is", null)
       .lte("kickoff", new Date().toISOString())
       .order("kickoff", { ascending: false });
+    if(selectedTeamId&&clubs[0])eventQuery=eventQuery.or(`home_club_id.eq.${clubs[0].id},away_club_id.eq.${clubs[0].id}`);
+    if(options.eventsLimit!==undefined)eventQuery=eventQuery.limit(Math.max(1,Math.min(10,Math.floor(Number(options.eventsLimit)||3))));
+    const matchesQuery=await eventQuery;
 
     if (matchesQuery.error) {
       throw matchesQuery.error;

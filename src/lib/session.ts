@@ -29,9 +29,19 @@ export function useSession() {
       setLoading(false);
       if (["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED"].includes(event)) queryClient.invalidateQueries();
     });
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      let next=data.session;
+      if(next){
+        const verified=await supabase.auth.getUser();
+        if(verified.error&&[400,401,403,404].includes(Number(verified.error.status))){
+          // A locally cached token must not keep a deleted/revoked account signed in.
+          await supabase.auth.signOut({scope:'local'});
+          queryClient.clear();
+          next=null;
+        }
+      }
       if (!active) return;
-      setSession(data.session);
+      setSession(next);
       setLoading(false);
     });
     return () => {

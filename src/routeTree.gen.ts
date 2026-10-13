@@ -23,6 +23,7 @@ import { Route as AdminClubsRouteImport } from './routes/admin.clubs'
 import { Route as AdminNewsRouteImport } from './routes/admin.news'
 import { Route as AdminSongsRouteImport } from './routes/admin.songs'
 import { Route as AdminStaffRouteImport } from './routes/admin.staff'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as ArticleNewsIdRouteImport } from './routes/article.$newsId'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 
@@ -96,6 +97,11 @@ const AdminStaffRoute = AdminStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ArticleNewsIdRoute = ArticleNewsIdRouteImport.update({
   id: '/article/$newsId',
   path: '/article/$newsId',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/admin/news': typeof AdminNewsRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
+  '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/admin/news': typeof AdminNewsRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
+  '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/admin': typeof AdminIndexRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/admin/news': typeof AdminNewsRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
+  '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/songs'
     | '/admin/staff'
+    | '/admin/users'
     | '/article/$newsId'
     | '/match/$matchId'
     | '/admin/'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/songs'
     | '/admin/staff'
+    | '/admin/users'
     | '/article/$newsId'
     | '/match/$matchId'
     | '/admin'
@@ -212,6 +223,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/songs'
     | '/admin/staff'
+    | '/admin/users'
     | '/article/$newsId'
     | '/match/$matchId'
     | '/admin/'
@@ -331,6 +343,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStaffRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/article/$newsId': {
       id: '/article/$newsId'
       path: '/article/$newsId'
@@ -353,6 +372,7 @@ interface AdminRouteChildren {
   AdminNewsRoute: typeof AdminNewsRoute
   AdminSongsRoute: typeof AdminSongsRoute
   AdminStaffRoute: typeof AdminStaffRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -361,6 +381,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminNewsRoute: AdminNewsRoute,
   AdminSongsRoute: AdminSongsRoute,
   AdminStaffRoute: AdminStaffRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
