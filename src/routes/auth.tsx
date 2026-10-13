@@ -20,7 +20,7 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-type Mode = "intro" | "register" | "login" | "forgot";
+type Mode = "intro" | "register" | "login" | "forgot" | "verify";
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -184,6 +184,7 @@ function AuthPage() {
                   התחברות
                 </button>
               </p>
+              <button type="button" className="w-full text-center text-sm text-club underline" onClick={() => setMode('verify')}>קישור האימות לא עובד? שליחת מייל חדש</button>
             </>
           )}
 
@@ -241,6 +242,14 @@ function AuthPage() {
               </button>
             </form>
           )}
+
+          {!sent && mode === 'verify' && <form onSubmit={async e => { e.preventDefault(); if (!validEmail(email)) return; await resendVerification(); }} className="panel space-y-4 p-5">
+            <h2 className="text-lg font-bold">מייל אימות חדש</h2>
+            <p className="text-sm text-muted-foreground">הזן את האימייל שאיתו נרשמת. השתמש במייל החדש שתקבל — כתובת הקישור במייל ישן אינה משתנה.</p>
+            <Field label="אימייל" value={email} onChange={setEmail} type="email" />
+            <Button type="submit" variant="club" size="xl" disabled={busy}>{busy ? 'שולחים…' : 'שליחת מייל אימות חדש'}</Button>
+            <button type="button" className="w-full text-center text-sm text-muted-foreground" onClick={() => setMode('intro')}>חזרה</button>
+          </form>}
         </div>
 
         <p className="pb-4 text-center text-xs text-muted-foreground">
