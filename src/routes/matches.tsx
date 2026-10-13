@@ -58,9 +58,13 @@ function MatchesPage() {
 function MatchList({ title, items, empty }: { title: string; items: Match[]; empty: string }) {
   return <section><h2 className="mb-2 font-bold">{title}</h2>{!items.length ? <p className="panel p-4 text-sm text-muted-foreground">{empty}</p> : <div className="space-y-2">{items.map((m) => {
     const kickoff = new Date(m.kickoff); const done = m.status === "finished" || m.status === "live";
-    return <Link key={m.id} to="/match/$matchId" params={{ matchId: m.id }} className="panel flex items-center gap-3 p-3">
-      <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{m.home_name || "בית"} — {m.away_name || "חוץ"}</p><p className="text-xs text-muted-foreground">{m.competition} · {kickoff.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}</p></div>
-      <div className="display-title shrink-0 text-xl tabular-nums">{done ? `${m.home_score ?? "–"}:${m.away_score ?? "–"}` : kickoff.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+    return <Link key={m.id} to="/match/$matchId" params={{ matchId: m.id }} className="panel block p-3">
+      <div dir="ltr" className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <p dir="auto" className="min-w-0 text-center text-sm font-bold">{m.home_name || "בית"}</p>
+        <div className="display-title text-xl tabular-nums">{done ? `${m.home_score ?? "–"}:${m.away_score ?? "–"}` : kickoff.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+        <p dir="auto" className="min-w-0 text-center text-sm font-bold">{m.away_name || "חוץ"}</p>
+      </div>
+      <p className="mt-2 text-center text-xs text-muted-foreground">{m.competition} · {kickoff.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}</p>
     </Link>;
   })}</div>}</section>;
 }

@@ -1,3 +1,4 @@
+import {enablePush,disablePush} from "@/lib/push";
 import { oneRelation, assertResults } from "@/lib/runtime-utils.mjs";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/me")({ head: () => ({ meta: [{ title: "אני — 45:45" }] }), component: MePage });
 
 function MePage() {
-  const navigate = useNavigate(); const qc = useQueryClient(); const { user } = useSession(); const { data: profile } = useProfile(user?.id); const [picking, setPicking] = useState(false);
+  const navigate = useNavigate(); const qc = useQueryClient(); const { user } = useSession(); const { data: profile } = useProfile(user?.id); const [picking, setPicking] = useState(false); const [savingPrefs,setSavingPrefs]=useState(false);
   const { data: stats } = useQuery({ queryKey: ["me-stats", user?.id], enabled: !!user, queryFn: async () => {
     const [preds, att] = await Promise.all([
       supabase.from("predictions").select("home_score,away_score,match:matches(status,home_score,away_score)").eq("user_id", user!.id),
@@ -33,11 +34,13 @@ function MePage() {
     toast.success("הקבוצה עודכנה"); setPicking(false); qc.invalidateQueries();
   }
   async function setNotification(key: string, value: boolean) {
-    if (!user) return; const next = { ...prefs, [key]: value };
-    const { error } = await supabase.from("profiles").update({ notification_prefs: next, updated_at: new Date().toISOString() }).eq("id", user.id);
-    if (error) toast.error(error.message); else qc.invalidateQueries({ queryKey: ["profile", user.id] });
+    if (!user || savingPrefs) return; setSavingPrefs(true);
+    try { if(key === 'push_enabled') { if(value) await enablePush(user.id); else await disablePush(); }
+      const next={...prefs,[key]:value}; const result=await supabase.from('profiles').update({notification_prefs:next,updated_at:new Date().toISOString()}).eq('id',user.id); if(result.error)throw result.error;
+      await qc.invalidateQueries({queryKey:['profile',user.id]}); toast.success('העדפות ההתראות נשמרו');
+    } catch(error) { toast.error(error instanceof Error ? error.message : 'לא הצלחנו לשמור את ההתראות'); } finally { setSavingPrefs(false); }
   }
-  async function signOut() { await qc.cancelQueries(); qc.clear(); await supabase.auth.signOut(); navigate({ to: "/auth", replace: true }); }
+  async function signOut() { try { await disablePush(); } catch {} await qc.cancelQueries(); qc.clear(); await supabase.auth.signOut(); navigate({ to: "/auth", replace: true }); }
   if (!profile) return <AppShell />;
 
   return <AppShell title="אני">
@@ -53,7 +56,7 @@ function MePage() {
       {picking && <div className="mt-3 grid grid-cols-2 gap-2">{clubs?.map((c) => <button key={c.id} onClick={() => changeClub(c.id)} className="rounded-xl border border-border p-3 text-right text-sm">{c.name_he}</button>)}<p className="col-span-2 text-xs text-muted-foreground">לאחר ההחלפה תוכל להחליף שוב רק בעוד 30 יום.</p></div>}
     </section>
 
-    <section className="panel mt-4 p-5"><h2 className="mb-3 font-bold">התראות</h2><Toggle label="התראות Push" checked={prefs["push_enabled"] ?? false} onChange={(v) => setNotification("push_enabled", v)} /><Toggle label="חדשות חשובות" checked={prefs["important_news"] ?? true} onChange={(v) => setNotification("important_news", v)} /><Toggle label="הודעות רשמיות" checked={prefs["official_news"] ?? true} onChange={(v) => setNotification("official_news", v)} /><Toggle label="התראות משחק" checked={prefs["match_alerts"] ?? true} onChange={(v) => setNotification("match_alerts", v)} /><Toggle label="שערים" checked={prefs["goals"] ?? true} onChange={(v) => setNotification("goals", v)} /><Toggle label="הרכבים" checked={prefs["lineups"] ?? true} onChange={(v) => setNotification("lineups", v)} /></section>
+    <section className="panel mt-4 p-5"><h2 className="mb-3 font-bold">התראות</h2><p className="mb-3 text-xs text-muted-foreground">Push מגיע גם כשהאפליקציה סגורה. באייפון: הוסף למסך הבית מתוך Safari ואז הפעל. {savingPrefs ? "שומר…" : ""}</p><Toggle label="התראות Push" checked={prefs["push_enabled"] ?? false} onChange={(v) => setNotification("push_enabled", v)} /><Toggle label="חדשות חשובות" checked={prefs["important_news"] ?? true} onChange={(v) => setNotification("important_news", v)} /><Toggle label="הודעות רשמיות" checked={prefs["official_news"] ?? true} onChange={(v) => setNotification("official_news", v)} /><Toggle label="התראות משחק" checked={prefs["match_alerts"] ?? true} onChange={(v) => setNotification("match_alerts", v)} /><Toggle label="סיום משחק" checked={prefs["full_time"] ?? true} onChange={(v) => setNotification("full_time", v)} /><Toggle label="שערים" checked={prefs["goals"] ?? true} onChange={(v) => setNotification("goals", v)} /><Toggle label="הרכבים" checked={prefs["lineups"] ?? true} onChange={(v) => setNotification("lineups", v)} /></section>
     <Button variant="ghost" size="xl" className="mt-4 text-destructive" onClick={signOut}>התנתקות</Button>
   </AppShell>;
 }

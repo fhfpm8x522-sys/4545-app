@@ -1,3 +1,4 @@
+import { NotificationsInbox } from "@/components/notifications-inbox";
 import { QueryFeedback } from "@/components/query-feedback";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Bell, CalendarDays, Home, Newspaper, Shield, User } from "lucide-react";
@@ -70,14 +71,7 @@ export function AppShell({
                   ניהול
                 </Link>
               )}
-              <button
-                type="button"
-                aria-label="העדפות התראות"
-                onClick={() => navigate({ to: "/me" })}
-                className="grid size-9 place-items-center rounded-full text-muted-foreground"
-              >
-                <Bell className="size-5" />
-              </button>
+              <NotificationsInbox userId={user.id} />
             </div>
           </div>
         </header>

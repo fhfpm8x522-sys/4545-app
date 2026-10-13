@@ -1,6 +1,6 @@
 import { appRedirectUrl } from "@/lib/runtime-utils.mjs";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useId } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
@@ -30,6 +30,8 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
+  const [providers,setProviders] = useState<{google?:boolean;apple?:boolean}>({});
+  useEffect(()=>{let active=true;const env=import.meta.env;fetch(`${env.VITE_SUPABASE_URL}/auth/v1/settings`,{headers:{apikey:env.VITE_SUPABASE_PUBLISHABLE_KEY||env.VITE_SUPABASE_ANON_KEY||""}}).then(r=>r.json()).then(r=>{if(active)setProviders(r.external??{});}).catch(()=>{});return()=>{active=false;};},[]);
   const [sent, setSent] = useState<null | "verify" | "reset">(null);
 
   useEffect(() => {
@@ -153,12 +155,13 @@ function AuthPage() {
 
           {!sent && mode === "intro" && (
             <>
-              <Button variant="club" size="xl" disabled={busy} onClick={() => oauth("apple")}>
+              <Button variant="club" size="xl" disabled={busy || !providers.apple} onClick={() => oauth("apple")}>
                 המשך עם Apple
               </Button>
-              <Button variant="outline" size="xl" disabled={busy} onClick={() => oauth("google")}>
+              <Button variant="outline" size="xl" disabled={busy || !providers.google} onClick={() => oauth("google")}>
                 המשך עם Google
               </Button>
+              {(!providers.google || !providers.apple) && <p className="text-center text-xs text-muted-foreground">ספקי ההתחברות שטרם הוגדרו אינם זמינים. אפשר להתחבר באימייל.</p>}
               <Button variant="ghost" size="xl" onClick={() => setMode("register")}>
                 הרשמה עם אימייל
               </Button>
@@ -246,11 +249,14 @@ function Field({
   onChange: (v: string) => void;
   type?: string;
 }) {
+  const id=useId();
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <Label htmlFor={id}>{label}</Label>
       <Input
+        id={id}
         type={type}
+        autoComplete={type === "email" ? "email" : type === "password" ? "current-password" : "off"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         dir={type === "email" ? "ltr" : undefined}

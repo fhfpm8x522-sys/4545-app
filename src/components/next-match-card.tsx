@@ -48,13 +48,13 @@ export function NextMatchCard({ match }: { match: Match }) {
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3" dir="ltr">
         <TeamSide name={match.home_name || "בית"} crest={match.home_logo_url} />
         <div className="text-center">
           {state === "upcoming" || state === "matchday" ? (
             <div className="display-title text-3xl">{kickoff.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
           ) : (
-            <div className="display-title text-4xl tabular-nums">{match.home_score ?? "–"} : {match.away_score ?? "–"}</div>
+            <div className="display-title text-4xl tabular-nums" dir="ltr">{match.home_score ?? "–"} : {match.away_score ?? "–"}</div>
           )}
           {state === "live" && <div className="text-xs font-bold text-live">{match.minute ? `${match.minute}׳` : "LIVE"}</div>}
         </div>
@@ -83,7 +83,7 @@ function TeamSide({ name, crest }: { name: string; crest: string | null }) {
       <div className="grid size-12 place-items-center overflow-hidden rounded-full bg-surface-2">
         {crest ? <img src={crest} alt={name} className="size-full object-contain" /> : <span className="text-sm font-bold">{name.slice(0, 2)}</span>}
       </div>
-      <span className="text-xs font-semibold leading-tight">{name}</span>
+      <span dir="auto" className="text-xs font-semibold leading-tight">{name}</span>
     </div>
   );
 }
