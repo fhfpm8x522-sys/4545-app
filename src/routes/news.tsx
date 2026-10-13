@@ -1,3 +1,4 @@
+import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -13,10 +14,11 @@ export const NEWS_CATEGORIES = [
 
 function NewsPage() {
   const { user } = useSession(); const { data: profile } = useProfile(user?.id); const clubId = profile?.favorite_club_id; const [cat, setCat] = useState("all");
-  const { data: items } = useQuery({ queryKey: ["news", clubId], enabled: !!clubId, queryFn: async () => {
+  const { data: items, isLoading, error, refetch } = useQuery({ queryKey: ["news", clubId], enabled: !!clubId, refetchInterval: 30000, queryFn: async () => {
     const { data, error } = await supabase.from("news_items").select("*").eq("club_id", clubId!).eq("status", "published").order("published_at", { ascending: false }).limit(50); if (error) throw error; return data ?? [];
   }});
   const list = (items ?? []).filter((n) => cat === "all" || (cat === "official" ? n.official : n.category === cat)); const [lead, ...rest] = list;
+  if (isLoading || error) return <AppShell title="חדשות"><QueryFeedback loading={isLoading} error={error} retry={refetch} /></AppShell>;
   return <AppShell title="חדשות">
     <div className="mb-4 flex gap-2 overflow-x-auto hide-scrollbar">{NEWS_CATEGORIES.map((c) => <button key={c.key} onClick={() => setCat(c.key)} className={cn("shrink-0 rounded-full border px-4 py-1.5 text-sm", cat === c.key ? "border-club bg-club/15 text-club" : "border-border text-muted-foreground")}>{c.label}</button>)}</div>
     {!lead && <p className="panel p-4 text-sm text-muted-foreground">אין עדיין ידיעות בקטגוריה הזו.</p>}

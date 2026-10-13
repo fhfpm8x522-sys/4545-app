@@ -1,3 +1,4 @@
+import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -22,8 +23,8 @@ function MatchesPage() {
   const { data: profile } = useProfile(user?.id);
   const clubId = profile?.favorite_club_id;
   const [filter, setFilter] = useState("all");
-  const { data: rows } = useQuery({
-    queryKey: ["matches", clubId], enabled: !!clubId,
+  const { data: rows, isLoading, error, refetch } = useQuery({
+    queryKey: ["matches", clubId], enabled: !!clubId, refetchInterval: 30000,
     queryFn: async () => {
       const { data, error } = await supabase.from("matches").select("*").or(`home_club_id.eq.${clubId},away_club_id.eq.${clubId}`).order("kickoff");
       if (error) throw error;
@@ -45,6 +46,7 @@ function MatchesPage() {
   const upcoming = matches.filter((m) => m.status === "live" || (m.status !== "finished" && new Date(m.kickoff).getTime() >= Date.now()));
   const finished = matches.filter((m) => m.status === "finished" || (m.status !== "live" && new Date(m.kickoff).getTime() < Date.now()));
 
+  if (isLoading || error) return <AppShell title="משחקים"><QueryFeedback loading={isLoading} error={error} retry={refetch} /></AppShell>;
   return <AppShell title="משחקים">
     <div className="mb-4 flex gap-2 overflow-x-auto hide-scrollbar">{FILTERS.map((f) => <button key={f.key} onClick={() => setFilter(f.key)} className={cn("shrink-0 rounded-full border px-4 py-1.5 text-sm", filter === f.key ? "border-club bg-club/15 text-club" : "border-border text-muted-foreground")}>{f.label}</button>)}</div>
     {upcoming[0] && <div className="mb-5"><NextMatchCard match={upcoming[0]} /></div>}

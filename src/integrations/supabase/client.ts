@@ -1,3 +1,4 @@
+import { publicClientKey } from "@/lib/runtime-utils.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { brokeredPreviewStorage } from "./previewAuthStorage";
 
@@ -21,12 +22,10 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 function createSupabaseClient() {
   const env = import.meta.env as Record<string, string | undefined>;
-  const SUPABASE_URL = env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const SUPABASE_URL = env["VITE_SUPABASE_URL"];
   const SUPABASE_PUBLISHABLE_KEY =
-    env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    env.VITE_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_ANON_KEY;
+    env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    env["VITE_SUPABASE_ANON_KEY"];
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     throw new Error("Missing VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY");
@@ -35,6 +34,7 @@ function createSupabaseClient() {
     throw new Error("Refusing to expose a Supabase secret key in the browser. Use a publishable/anon key.");
   }
 
+  publicClientKey(SUPABASE_PUBLISHABLE_KEY);
   return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     global: { fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY) },
     auth: {

@@ -86,6 +86,7 @@ function Onboarding() {
 
   async function finish(withNotifications: boolean) {
     if (!user || !clubId) return;
+    if (busy || !usernameValid || !displayName.trim()) return;
     setBusy(true);
     const wasInitial = !profile?.favorite_club_id;
     const payload = {
@@ -110,7 +111,8 @@ function Onboarding() {
     const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
     if (error) {
       setBusy(false);
-      toast.error(error.message.includes("duplicate") ? "שם המשתמש כבר תפוס" : error.message);
+      toast.error(error.code === "23505" ? "שם המשתמש כבר תפוס — בחר כינוי אחר" : error.message);
+      if (error.code === "23505") { setStep("profile"); await queryClient.invalidateQueries({ queryKey: ["username-check"] }); }
       return;
     }
     if (wasInitial) {

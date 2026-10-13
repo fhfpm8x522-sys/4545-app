@@ -1,3 +1,7 @@
+import { nextMatch } from "@/lib/runtime-utils.mjs";
+import { toast } from "sonner";
+import { assertResults } from "@/lib/runtime-utils.mjs";
+import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,26 +22,29 @@ function Home() {
   const club = profile?.club;
   const clubId = club?.id;
 
-  const { data } = useQuery({
+  const { data, isLoading: dataLoading, error: dataError, refetch: retryData } = useQuery({
     queryKey: ["home", clubId],
     enabled: !!clubId,
+    refetchInterval: 30000,
     queryFn: async () => {
       const [next, news, poll, standing, history] = await Promise.all([
-        supabase.from("matches").select("*").or(`home_club_id.eq.${clubId},away_club_id.eq.${clubId}`).in("status", ["scheduled", "live"]).order("kickoff").limit(1).maybeSingle(),
+        supabase.from("matches").select("*").or(`home_club_id.eq.${clubId},away_club_id.eq.${clubId}`).in("status", ["scheduled", "live"]).order("kickoff"),
         supabase.from("news_items").select("id,title,image_url,source_name,published_at,official,summary,category").eq("club_id", clubId!).eq("status", "published").order("published_at", { ascending: false }).limit(4),
         supabase.from("polls").select("*").eq("club_id", clubId!).eq("status", "published").order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("club_standings").select("*").eq("club_id", clubId!).maybeSingle(),
         supabase.from("club_history").select("*").eq("club_id", clubId!).order("event_date", { ascending: false }).limit(100),
       ]);
+      assertResults(next, news, poll, standing, history);
       const today = new Date();
       const moment = (history.data ?? []).find((m) => {
         const d = new Date(`${m.event_date}T12:00:00`);
         return d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
       }) ?? null;
-      return { next: next.data as Match | null, news: news.data ?? [], poll: poll.data, standing: standing.data, moment };
+      return { next: nextMatch((next.data ?? []) as Match[]), news: news.data ?? [], poll: poll.data, standing: standing.data, moment };
     },
   });
 
+  if (dataLoading || dataError) return <AppShell><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
   return <AppShell>
     {club && <div className="mb-4 flex items-center gap-3">
       {club.crest_url ? <img src={club.crest_url} alt="" className="size-10 object-contain" /> : <span className="h-8 w-1.5 rounded-full bg-club" />}
@@ -80,13 +87,14 @@ function PollCard({ poll, userId }: { poll: { id: string; question: string; opti
   const options: PollOption[] = (Array.isArray(poll.options) ? poll.options : []).map((o: unknown, index: number) => {
     if (typeof o === "string") return { key: String(index), label: o, index };
     const obj = (o ?? {}) as Record<string, unknown>;
-    return { key: String(obj.key ?? index), label: String(obj.label ?? obj.text ?? `אפשרות ${index + 1}`), index };
+    return { key: String(obj["key"] ?? index), label: String(obj["label"] ?? obj["text"] ?? `אפשרות ${index + 1}`), index };
   });
   const { data: votes } = useQuery({ queryKey: ["poll-votes", poll.id], queryFn: async () => (await supabase.from("poll_votes").select("user_id,option_index").eq("poll_id", poll.id)).data ?? [] });
   const mine = votes?.find((v) => v.user_id === userId)?.option_index;
   const total = votes?.length ?? 0;
   async function vote(index: number) {
-    await supabase.from("poll_votes").upsert({ poll_id: poll.id, user_id: userId, option_index: index }, { onConflict: "poll_id,user_id" });
+    const {error} = await supabase.from("poll_votes").upsert({ poll_id: poll.id, user_id: userId, option_index: index }, { onConflict: "poll_id,user_id" });
+    if(error){ toast.error("לא הצלחנו לשמור את ההצבעה"); return; }
     qc.invalidateQueries({ queryKey: ["poll-votes", poll.id] });
   }
   return <section className="panel p-5"><p className="text-[11px] font-bold tracking-wide text-club">סקר</p><p className="mt-2 font-bold">{poll.question}</p><div className="mt-3 space-y-2">{options.map((o) => {

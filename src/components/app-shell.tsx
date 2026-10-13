@@ -1,3 +1,4 @@
+import { QueryFeedback } from "@/components/query-feedback";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Bell, CalendarDays, Home, Newspaper, Shield, User } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
@@ -24,7 +25,7 @@ export function AppShell({
 }) {
   const navigate = useNavigate();
   const { user, loading } = useSession();
-  const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
+  const { data: profile, isLoading: profileLoading, error: profileError, refetch: retryProfile } = useProfile(user?.id);
   const { data: staff } = useStaffMemberships(user?.id);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -36,10 +37,10 @@ export function AppShell({
       navigate({ to: "/auth", replace: true });
       return;
     }
-    if (!profileLoading && (!profile || profile.onboarding_completed === false || !profile.favorite_club_id)) {
+    if (!profileError && !profileLoading && (!profile || (profile.onboarding_completed === false && (!profile.display_name || !profile.username)) || !profile.favorite_club_id)) {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [loading, user, profile, profileLoading, navigate]);
+  }, [loading, user, profile, profileLoading, profileError, navigate]);
 
   if (loading || !user || profileLoading) {
     return (
@@ -48,6 +49,8 @@ export function AppShell({
       </div>
     );
   }
+
+  if (profileError) return <main className="mx-auto max-w-md p-6"><QueryFeedback error={profileError} retry={retryProfile} /></main>;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -69,7 +72,8 @@ export function AppShell({
               )}
               <button
                 type="button"
-                aria-label="התראות"
+                aria-label="העדפות התראות"
+                onClick={() => navigate({ to: "/me" })}
                 className="grid size-9 place-items-center rounded-full text-muted-foreground"
               >
                 <Bell className="size-5" />

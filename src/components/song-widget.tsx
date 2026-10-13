@@ -1,3 +1,6 @@
+import { pickWidgetSlot, assertResults } from "@/lib/runtime-utils.mjs";
+import { QueryFeedback } from "@/components/query-feedback";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Quote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,36 +9,44 @@ export const SLOT_HOURS = 3;
 export function currentSlotHour(date = new Date()) { return Math.floor(date.getHours() / SLOT_HOURS) * SLOT_HOURS; }
 
 export function SongWidget({ clubId, clubName }: { clubId: string; clubName: string }) {
-  const slotHour = currentSlotHour();
-  const { data } = useQuery({
-    queryKey: ["widget-line", clubId, slotHour],
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const timer = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(timer); }, []);
+  const slotHour = currentSlotHour(now);
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const { data, error, refetch } = useQuery({
+    queryKey: ["widget-line", clubId, slotHour, today],
     queryFn: async () => {
       const hhmm = `${String(slotHour).padStart(2, "0")}:00:00`;
-      const { data: slot } = await supabase
+      const slots = await supabase
         .from("widget_schedule")
         .select("chant_id,enabled,override_date")
         .eq("club_id", clubId)
         .eq("slot_time", hhmm)
-        .eq("enabled", true)
-        .maybeSingle();
+        .eq("enabled", true);
+      assertResults(slots);
+      const slot = pickWidgetSlot(slots.data ?? [], today);
 
       if (slot?.chant_id) {
-        const { data: chant } = await supabase.from("chants").select("id,line,title,enabled").eq("id", slot.chant_id).eq("enabled", true).maybeSingle();
-        if (chant) return chant;
+        const chantResult = await supabase.from("chants").select("id,line,title,enabled").eq("id", slot.chant_id).eq("enabled", true).maybeSingle();
+        assertResults(chantResult);
+        if (chantResult.data) return chantResult.data;
       }
 
-      const { data: chants } = await supabase
+      const chantsResult = await supabase
         .from("chants")
         .select("id,line,title")
         .eq("club_id", clubId)
         .eq("enabled", true)
         .order("sort_order");
+      assertResults(chantsResult);
+      const chants = chantsResult.data;
       if (!chants?.length) return null;
       const slotIndex = Math.floor(Date.now() / (SLOT_HOURS * 3600000));
       return chants[slotIndex % chants.length];
     },
   });
 
+  if (error) return <QueryFeedback error={error} retry={refetch} />;
   if (!data) return null;
   return (
     <div className="panel relative overflow-hidden p-5">

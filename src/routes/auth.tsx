@@ -1,3 +1,4 @@
+import { appRedirectUrl } from "@/lib/runtime-utils.mjs";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -39,7 +40,7 @@ function AuthPage() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: appRedirectUrl(window.location.origin, import.meta.env.BASE_URL) },
     });
     if (error) {
       setBusy(false);
@@ -69,7 +70,7 @@ function AuthPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: appRedirectUrl(window.location.origin, import.meta.env.BASE_URL) },
     });
     setBusy(false);
     if (error) {
@@ -103,7 +104,7 @@ function AuthPage() {
     }
     setBusy(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: appRedirectUrl(window.location.origin, import.meta.env.BASE_URL, "reset-password"),
     });
     setBusy(false);
     if (error) {

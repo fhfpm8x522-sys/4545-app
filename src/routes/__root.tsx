@@ -61,7 +61,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             נסה שוב
           </button>
           <a
-            href="/"
+            href={import.meta.env.BASE_URL}
             className="inline-flex items-center justify-center rounded-full border border-border px-5 py-2.5 text-sm font-medium"
           >
             חזרה לבית
@@ -122,6 +122,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {import.meta.env.VITE_STATIC_PAGES === "true" && <HeadContent />}
       <Outlet />
       <Toaster position="top-center" dir="rtl" />
     </QueryClientProvider>

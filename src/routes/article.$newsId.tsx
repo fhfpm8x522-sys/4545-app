@@ -1,3 +1,4 @@
+import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,9 +8,10 @@ export const Route = createFileRoute("/article/$newsId")({ head: () => ({ meta: 
 type Source = { name?: string; url?: string };
 function Article() {
   const { newsId } = Route.useParams();
-  const { data: n } = useQuery({ queryKey: ["article", newsId], queryFn: async () => (await supabase.from("news_items").select("*").eq("id", newsId).eq("status", "published").maybeSingle()).data });
+  const { data: n, error, isLoading, refetch } = useQuery({ queryKey: ["article", newsId], queryFn: async () => { const r=await supabase.from("news_items").select("*").eq("id", newsId).eq("status", "published").maybeSingle(); if(r.error) throw r.error; return r.data; } });
+  if (isLoading || error) return <AppShell title="חדשות"><QueryFeedback loading={isLoading} error={error} retry={refetch} /></AppShell>;
   const sources = Array.isArray(n?.sources) ? (n.sources as Source[]) : [];
-  return <AppShell title="חדשות">{!n ? <p className="text-muted-foreground">טוען…</p> : <article className="space-y-4">
+  return <AppShell title="חדשות">{!n ? <p className="text-muted-foreground">הידיעה לא נמצאה או טרם פורסמה.</p> : <article className="space-y-4">
     {n.image_url && <img src={n.image_url} alt="" className="aspect-video w-full rounded-2xl object-cover" />}
     {n.official && <span className="inline-block rounded-full bg-club px-3 py-1 text-xs font-bold text-club-foreground">הודעה רשמית</span>}
     <h1 className="text-2xl font-black leading-tight">{n.title}</h1>

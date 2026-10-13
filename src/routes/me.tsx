@@ -1,3 +1,4 @@
+import { oneRelation, assertResults } from "@/lib/runtime-utils.mjs";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -16,7 +17,8 @@ function MePage() {
       supabase.from("predictions").select("home_score,away_score,match:matches(status,home_score,away_score)").eq("user_id", user!.id),
       supabase.from("match_attendance").select("match_id", { count: "exact", head: true }).eq("user_id", user!.id),
     ]);
-    const list = preds.data ?? []; const settled = list.filter((p) => p.match?.status === "finished");
+    assertResults(preds, att);
+    const list = (preds.data ?? []).map(p => ({...p, match: oneRelation(p.match)})); const settled = list.filter((p) => p.match?.status === "finished");
     const exact = settled.filter((p) => p.home_score === p.match!.home_score && p.away_score === p.match!.away_score).length;
     const dir = settled.filter((p) => Math.sign(p.home_score - p.away_score) === Math.sign((p.match!.home_score ?? 0) - (p.match!.away_score ?? 0))).length;
     return { total: list.length, exact, dir, accuracy: settled.length ? Math.round((dir / settled.length) * 100) : 0, attended: att.count ?? 0 };
@@ -51,7 +53,7 @@ function MePage() {
       {picking && <div className="mt-3 grid grid-cols-2 gap-2">{clubs?.map((c) => <button key={c.id} onClick={() => changeClub(c.id)} className="rounded-xl border border-border p-3 text-right text-sm">{c.name_he}</button>)}<p className="col-span-2 text-xs text-muted-foreground">לאחר ההחלפה תוכל להחליף שוב רק בעוד 30 יום.</p></div>}
     </section>
 
-    <section className="panel mt-4 p-5"><h2 className="mb-3 font-bold">התראות</h2><Toggle label="התראות Push" checked={prefs.push_enabled ?? false} onChange={(v) => setNotification("push_enabled", v)} /><Toggle label="חדשות חשובות" checked={prefs.important_news ?? true} onChange={(v) => setNotification("important_news", v)} /><Toggle label="הודעות רשמיות" checked={prefs.official_news ?? true} onChange={(v) => setNotification("official_news", v)} /><Toggle label="התראות משחק" checked={prefs.match_alerts ?? true} onChange={(v) => setNotification("match_alerts", v)} /><Toggle label="שערים" checked={prefs.goals ?? true} onChange={(v) => setNotification("goals", v)} /><Toggle label="הרכבים" checked={prefs.lineups ?? true} onChange={(v) => setNotification("lineups", v)} /></section>
+    <section className="panel mt-4 p-5"><h2 className="mb-3 font-bold">התראות</h2><Toggle label="התראות Push" checked={prefs["push_enabled"] ?? false} onChange={(v) => setNotification("push_enabled", v)} /><Toggle label="חדשות חשובות" checked={prefs["important_news"] ?? true} onChange={(v) => setNotification("important_news", v)} /><Toggle label="הודעות רשמיות" checked={prefs["official_news"] ?? true} onChange={(v) => setNotification("official_news", v)} /><Toggle label="התראות משחק" checked={prefs["match_alerts"] ?? true} onChange={(v) => setNotification("match_alerts", v)} /><Toggle label="שערים" checked={prefs["goals"] ?? true} onChange={(v) => setNotification("goals", v)} /><Toggle label="הרכבים" checked={prefs["lineups"] ?? true} onChange={(v) => setNotification("lineups", v)} /></section>
     <Button variant="ghost" size="xl" className="mt-4 text-destructive" onClick={signOut}>התנתקות</Button>
   </AppShell>;
 }

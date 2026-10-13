@@ -1,3 +1,5 @@
+import { assertResults } from "@/lib/runtime-utils.mjs";
+import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -19,8 +21,9 @@ const POSITIONS: [string, string][] = [["goalkeeper", "שוערים"], ["defende
 
 function ClubPage() {
   const { user } = useSession(); const { data: profile } = useProfile(user?.id); const club = profile?.club; const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("overview");
-  const { data } = useQuery({ queryKey: ["club-page", club?.id], enabled: !!club?.id, queryFn: async () => {
+  const { data, isLoading: dataLoading, error: dataError, refetch: retryData } = useQuery({ queryKey: ["club-page", club?.id], enabled: !!club?.id, queryFn: async () => {
     const playersRes = await supabase.from("players").select("*").eq("club_id", club!.id).eq("active", true).order("number");
+    assertResults(playersRes);
     const players = (playersRes.data ?? []) as Player[]; const ids = players.map((p) => p.id);
     const [stats, standing, trophies, history, matches] = await Promise.all([
       ids.length ? supabase.from("player_season_stats").select("*").in("player_id", ids) : Promise.resolve({ data: [] }),
@@ -29,13 +32,16 @@ function ClubPage() {
       supabase.from("club_history").select("*").eq("club_id", club!.id).order("event_date", { ascending: false }).limit(50),
       supabase.from("matches").select("*").or(`home_club_id.eq.${club!.id},away_club_id.eq.${club!.id}`).eq("status", "finished"),
     ]);
+    assertResults(stats, standing, trophies, history, matches);
     const statMap = new Map<string, PlayerStats>(); for (const s of (stats.data ?? []) as PlayerStats[]) { const current = statMap.get(s.player_id); if (!current || String(s.season) > String(current.season)) statMap.set(s.player_id, s); }
     return { players: players.map((p) => ({ ...p, season: statMap.get(p.id) })), standing: standing.data, trophies: trophies.data ?? [], history: history.data ?? [], matches: matches.data ?? [] };
   }});
+  const derived = useMemo(() => deriveTeamStats(data?.matches ?? [], club?.id ?? ""), [data?.matches, club?.id]);
   if (!club) return <AppShell />;
+  if (dataLoading || dataError) return <AppShell title="הקבוצה"><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
   const s = data?.standing; const players = data?.players ?? [];
   const top = (k: "goals" | "assists" | "minutes") => [...players].sort((a, b) => Number(b.season?.[k] ?? 0) - Number(a.season?.[k] ?? 0))[0];
-  const derived = useMemo(() => deriveTeamStats(data?.matches ?? [], club.id), [data?.matches, club.id]);
+
 
   return <AppShell title="הקבוצה">
     <section className="panel club-gradient stadium-glow overflow-hidden p-6" style={club.hero_image_url ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.78),rgba(0,0,0,.35)),url(${club.hero_image_url})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
@@ -60,21 +66,23 @@ function ClubPage() {
 }
 
 function deriveTeamStats(matches: Array<Record<string, unknown>>, clubId: string) {
-  let wins=0,draws=0,losses=0,gf=0,ga=0; for (const m of matches) { const hs=Number(m.home_score ?? 0), as=Number(m.away_score ?? 0), home=m.home_club_id===clubId; const ours=home?hs:as, theirs=home?as:hs; gf+=ours; ga+=theirs; if(ours>theirs)wins++; else if(ours===theirs)draws++; else losses++; } return { wins,draws,losses,gf,ga,played:wins+draws+losses };
+  let wins=0,draws=0,losses=0,gf=0,ga=0; for (const m of matches) { const hs=Number(m["home_score"] ?? 0), as=Number(m["away_score"] ?? 0), home=m["home_club_id"]===clubId; const ours=home?hs:as, theirs=home?as:hs; gf+=ours; ga+=theirs; if(ours>theirs)wins++; else if(ours===theirs)draws++; else losses++; } return { wins,draws,losses,gf,ga,played:wins+draws+losses };
 }
 
-function CommunityTab({ clubId, userId }: { clubId: string; userId?: string }) {
+function CommunityTab({ clubId, userId }: { clubId: string; userId?: string | undefined }) {
   const qc = useQueryClient(); const [post, setPost] = useState(""); const [message, setMessage] = useState("");
-  const { data } = useQuery({ queryKey: ["community", clubId], refetchInterval: 10000, queryFn: async () => {
+  const { data, error, isLoading, refetch } = useQuery({ queryKey: ["community", clubId], refetchInterval: 10000, queryFn: async () => {
     const [posts, chat] = await Promise.all([
       supabase.from("community_posts").select("*").eq("club_id", clubId).is("removed_at", null).order("created_at", { ascending: false }).limit(50),
-      supabase.from("chat_messages").select("*").eq("club_id", clubId).is("match_id", null).is("removed_at", null).order("created_at").limit(100),
+      supabase.from("chat_messages").select("*").eq("club_id", clubId).is("match_id", null).is("removed_at", null).order("created_at", { ascending: false }).limit(100),
     ]);
+    assertResults(posts, chat);
     const ids = [...(posts.data ?? []).map((x) => x.author_id), ...(chat.data ?? []).map((x) => x.author_id)]; const profiles = await publicProfiles(ids);
-    return { posts: posts.data ?? [], chat: chat.data ?? [], profiles };
+    return { posts: posts.data ?? [], chat: [...(chat.data ?? [])].reverse(), profiles };
   }});
   async function addPost() { if (!userId || !post.trim()) return; const { error } = await supabase.from("community_posts").insert({ club_id: clubId, author_id: userId, body: post.trim() }); if (error) toast.error(error.message); else { setPost(""); qc.invalidateQueries({ queryKey: ["community", clubId] }); } }
   async function addMessage() { if (!userId || !message.trim()) return; const { error } = await supabase.from("chat_messages").insert({ club_id: clubId, author_id: userId, body: message.trim() }); if (error) toast.error(error.message); else { setMessage(""); qc.invalidateQueries({ queryKey: ["community", clubId] }); } }
+  if (error || isLoading) return <QueryFeedback error={error} loading={isLoading} retry={refetch} />;
   return <div className="space-y-5"><section><h2 className="mb-2 font-bold">היציע שלנו</h2><div className="panel p-4"><textarea value={post} onChange={(e) => setPost(e.target.value)} placeholder="מה קורה ביציע?" className="min-h-20 w-full resize-none bg-transparent text-sm outline-none" /><Button variant="club" size="sm" disabled={!post.trim()} onClick={addPost}>פרסום</Button></div><div className="mt-2 space-y-2">{data?.posts.map((p) => { const a=data.profiles.get(p.author_id); return <div key={p.id} className="panel p-4"><p className="text-xs font-bold text-club">{a?.display_name || a?.username || "אוהד"}</p><p className="mt-1 text-sm">{p.body}</p></div>; })}</div></section>
     <section><h2 className="mb-2 font-bold">Club Chat</h2><div className="panel max-h-96 overflow-y-auto p-3">{data?.chat.map((m) => { const a=data.profiles.get(m.author_id); return <div key={m.id} className="border-b border-border py-2 last:border-0"><p className="text-[11px] font-bold text-club">{a?.display_name || a?.username || "אוהד"}</p><p className="text-sm">{m.body}</p></div>; })}</div><div className="mt-2 flex gap-2"><Input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="הודעה ליציע..." onKeyDown={(e) => { if (e.key === "Enter") addMessage(); }} /><Button variant="club" onClick={addMessage}>שלח</Button></div></section>
   </div>;

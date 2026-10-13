@@ -1,3 +1,5 @@
+import { assertResults } from "@/lib/runtime-utils.mjs";
+import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -16,24 +18,26 @@ export const Route = createFileRoute("/match/$matchId")({ head: () => ({ meta: [
 function MatchCenter() {
   const { matchId } = Route.useParams(); const { user } = useSession(); const qc = useQueryClient();
   const [home, setHome] = useState(""); const [away, setAway] = useState(""); const [chatText, setChatText] = useState("");
-  const { data } = useQuery({ queryKey: ["match", matchId, user?.id], refetchInterval: 15000, queryFn: async () => {
+  const { data, isLoading: dataLoading, error: dataError, refetch: retryData } = useQuery({ queryKey: ["match", matchId, user?.id], refetchInterval: 15000, queryFn: async () => {
     const [m, events, pred, att, chat] = await Promise.all([
       supabase.from("matches").select("*").eq("id", matchId).maybeSingle(),
       supabase.from("match_events").select(`*,player:players!match_events_player_ref_id_fkey(id,name,name_he,image_url,goal_name,goal_api_id),secondary_player:players!match_events_secondary_player_ref_id_fkey(id,name,name_he,image_url,goal_name,goal_api_id)`).eq("match_id", matchId).order("minute"),
       user ? supabase.from("predictions").select("*").eq("match_id", matchId).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
       user ? supabase.from("match_attendance").select("match_id").eq("match_id", matchId).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
-      supabase.from("chat_messages").select("*").eq("match_id", matchId).is("removed_at", null).order("created_at").limit(150),
+      supabase.from("chat_messages").select("*").eq("match_id", matchId).is("removed_at", null).order("created_at", { ascending: false }).limit(150),
     ]);
+    assertResults(m, events, pred, att, chat);
     const profiles = await publicProfiles((chat.data ?? []).map((x) => x.author_id));
-    return { match: m.data as Match | null, events: events.data ?? [], prediction: pred.data, attended: !!att.data, chat: chat.data ?? [], profiles };
+    return { match: m.data as Match | null, events: events.data ?? [], prediction: pred.data, attended: !!att.data, chat: [...(chat.data ?? [])].reverse(), profiles };
   }});
 
-  if (!data?.match) return <AppShell title="Match Center"><p className="text-muted-foreground">טוען…</p></AppShell>;
+  if (dataLoading || dataError) return <AppShell title="Match Center"><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
+  if (!data?.match) return <AppShell title="Match Center"><p className="panel p-4 text-muted-foreground">המשחק לא נמצא.</p></AppShell>;
   const { match, events, prediction, attended } = data; const state = matchState(match); const stats = normalizeStats(match.stats);
-  const canPredict = state === "upcoming" || state === "matchday";
+  const canPredict = (state === "upcoming" || state === "matchday") && Date.parse(match.kickoff) > Date.now();
 
   async function savePrediction() {
-    if (!user || home === "" || away === "") return;
+    if (!user || !canPredict || home === "" || away === "") return;
     const { error } = await supabase.from("predictions").upsert({ user_id: user.id, match_id: matchId, home_score: Number(home), away_score: Number(away) }, { onConflict: "match_id,user_id" });
     if (error) toast.error(error.message); else { toast.success("הניחוש נשמר"); qc.invalidateQueries({ queryKey: ["match", matchId] }); }
   }
@@ -50,7 +54,7 @@ function MatchCenter() {
 
   return <AppShell title="Match Center"><div className="space-y-4">
     <NextMatchCard match={match} />
-    {canPredict && <section className="panel p-5"><h2 className="font-bold">ניחוש תוצאה</h2>{prediction && <p className="mt-1 text-xs text-muted-foreground">הניחוש שלך: {prediction.home_score}:{prediction.away_score}</p>}<div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-end gap-3"><ScoreInput label={match.home_name || "בית"} value={home} onChange={setHome} /><span className="pb-3 text-muted-foreground">:</span><ScoreInput label={match.away_name || "חוץ"} value={away} onChange={setAway} /></div><Button variant="club" size="xl" className="mt-3" onClick={savePrediction}>שמור ניחוש</Button></section>}
+    {canPredict && <section className="panel p-5"><h2 className="font-bold">ניחוש תוצאה</h2>{prediction && <p className="mt-1 text-xs text-muted-foreground">הניחוש שלך: {prediction.home_score}:{prediction.away_score}</p>}<div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-end gap-3"><ScoreInput label={match.home_name || "בית"} value={home} onChange={setHome} /><span className="pb-3 text-muted-foreground">:</span><ScoreInput label={match.away_name || "חוץ"} value={away} onChange={setAway} /></div><Button variant="club" size="xl" className="mt-3" disabled={!user || home === "" || away === ""} onClick={savePrediction}>שמור ניחוש</Button></section>}
     <Button variant={attended ? "club" : "clubSoft"} size="xl" onClick={toggleAttend}>🏟️ {attended ? "הייתי שם ✓" : "הייתי שם"}</Button>
 
     {(state === "live" || state === "finished") && <Timeline events={events} match={match} />}
