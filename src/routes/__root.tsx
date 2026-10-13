@@ -106,6 +106,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // The Pages entry already owns html/head/body. Nesting a second document
+  // inside #root breaks native input events in Chromium-based webviews.
+  if (import.meta.env.VITE_STATIC_PAGES === "true") return <>{children}</>;
   return (
     <html lang="he" dir="rtl">
       <head>
