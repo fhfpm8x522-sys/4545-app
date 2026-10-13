@@ -40,7 +40,7 @@ function ClubPage() {
   if (!club) return <AppShell />;
   if (dataLoading || dataError) return <AppShell title="הקבוצה"><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
   const s = data?.standing; const players = data?.players ?? [];
-  const top = (k: "goals" | "assists" | "minutes") => [...players].sort((a, b) => Number(b.season?.[k] ?? 0) - Number(a.season?.[k] ?? 0))[0];
+  const top = (k: "goals" | "assists" | "minutes") => players.filter((p) => Number(p.season?.[k] ?? 0) > 0).sort((a, b) => Number(b.season?.[k] ?? 0) - Number(a.season?.[k] ?? 0))[0];
 
 
   return <AppShell title="הקבוצה">
