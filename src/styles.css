@@ -1,0 +1,138 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * 45:45 design system — dark, premium, stadium.
+ * The club accent is injected at runtime into --club / --club-2 by
+ * <ClubTheme>. Never hardcode colors in components; use the tokens below.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 20px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-club: var(--club);
+  --color-club-foreground: var(--club-foreground);
+  --color-club-2: var(--club-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-live: var(--live);
+  --font-sans: "Heebo", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", "Heebo", sans-serif;
+  --shadow-glow: 0 0 0 1px color-mix(in oklch, var(--club) 26%, transparent),
+    0 18px 50px -24px color-mix(in oklch, var(--club) 70%, transparent);
+  --shadow-card: 0 20px 40px -32px oklch(0 0 0 / 0.9);
+}
+
+:root {
+  --radius: 1rem;
+  --background: oklch(0.145 0.006 265);
+  --foreground: oklch(0.975 0.002 250);
+  --surface: oklch(0.192 0.007 265);
+  --surface-2: oklch(0.235 0.008 265);
+  --card: oklch(0.192 0.007 265);
+  --card-foreground: oklch(0.975 0.002 250);
+  --popover: oklch(0.192 0.007 265);
+  --popover-foreground: oklch(0.975 0.002 250);
+  --primary: oklch(0.975 0.002 250);
+  --primary-foreground: oklch(0.16 0.006 265);
+  --secondary: oklch(0.255 0.008 265);
+  --secondary-foreground: oklch(0.975 0.002 250);
+  --muted: oklch(0.255 0.008 265);
+  --muted-foreground: oklch(0.68 0.012 260);
+  --accent: oklch(0.27 0.01 265);
+  --accent-foreground: oklch(0.975 0.002 250);
+  --destructive: oklch(0.6 0.23 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: var(--club);
+  --live: oklch(0.68 0.2 25);
+
+  /* Neutral 45:45 brand accent until a club is selected */
+  --club: oklch(0.72 0.16 165);
+  --club-foreground: oklch(0.16 0.01 265);
+  --club-2: oklch(0.45 0.12 210);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    overscroll-behavior-y: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.015em;
+  }
+}
+
+@utility club-gradient {
+  background-image: linear-gradient(
+    160deg,
+    color-mix(in oklch, var(--club) 34%, var(--surface)) 0%,
+    var(--surface) 62%,
+    var(--surface-2) 100%
+  );
+}
+
+@utility stadium-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+@utility panel {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+@utility display-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+  font-weight: 400;
+}
+
+@utility hide-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

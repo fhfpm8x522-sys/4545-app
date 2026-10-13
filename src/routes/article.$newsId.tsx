@@ -1,0 +1,20 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { AppShell } from "@/components/app-shell";
+
+export const Route = createFileRoute("/article/$newsId")({ head: () => ({ meta: [{ title: "ידיעה — 45:45" }] }), component: Article });
+type Source = { name?: string; url?: string };
+function Article() {
+  const { newsId } = Route.useParams();
+  const { data: n } = useQuery({ queryKey: ["article", newsId], queryFn: async () => (await supabase.from("news_items").select("*").eq("id", newsId).eq("status", "published").maybeSingle()).data });
+  const sources = Array.isArray(n?.sources) ? (n.sources as Source[]) : [];
+  return <AppShell title="חדשות">{!n ? <p className="text-muted-foreground">טוען…</p> : <article className="space-y-4">
+    {n.image_url && <img src={n.image_url} alt="" className="aspect-video w-full rounded-2xl object-cover" />}
+    {n.official && <span className="inline-block rounded-full bg-club px-3 py-1 text-xs font-bold text-club-foreground">הודעה רשמית</span>}
+    <h1 className="text-2xl font-black leading-tight">{n.title}</h1>
+    <p className="text-xs text-muted-foreground">{n.source_name || "45:45"}{n.published_at && ` · ${new Date(n.published_at).toLocaleString("he-IL")}`}</p>
+    {n.summary && <p className="text-lg font-medium">{n.summary}</p>}{n.body && <div className="whitespace-pre-line leading-relaxed text-foreground/90">{n.body}</div>}
+    {(n.source_url || sources.length > 0) && <div className="panel p-4 text-sm"><p className="mb-2 font-bold">מקורות</p><ul className="space-y-1">{n.source_url && <li><a className="text-club underline" href={n.source_url} target="_blank" rel="noreferrer">{n.source_name || n.source_url}</a></li>}{sources.map((s, i) => s.url ? <li key={i}><a className="text-club underline" href={s.url} target="_blank" rel="noreferrer">{s.name || s.url}</a></li> : null)}</ul></div>}
+  </article>}</AppShell>;
+}

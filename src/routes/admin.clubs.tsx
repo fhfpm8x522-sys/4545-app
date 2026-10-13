@@ -1,0 +1,18 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { audit, useAdmin } from "@/lib/admin";
+import { clubAccentStyle } from "@/lib/club-theme";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { Club } from "@/lib/app-types";
+
+export const Route=createFileRoute("/admin/clubs")({component:AdminClubs});
+const FIELDS:[keyof Club,string][]=[["name_he","שם"],["short_name_he","שם קצר"],["city","עיר"],["country","מדינה"],["league","ליגה"],["stadium","אצטדיון"],["crest_url","קישור לסמל"],["hero_image_url","תמונת רקע"],["accent_color","צבע ראשי"],["accent_foreground","צבע טקסט"],["accent_secondary","צבע משני"],["description","תיאור"]];
+function AdminClubs(){const {clubId,userId}=useAdmin();const qc=useQueryClient();const {data:club}=useQuery({queryKey:["admin-club",clubId],queryFn:async()=>{const r=await supabase.from("clubs").select("*").eq("id",clubId!).single();return r.data as Club;}});const [form,setForm]=useState<Partial<Club>>({});useEffect(()=>setForm({}),[clubId]);const merged={...club,...form} as Club;
+ async function save(){if(!club)return;const patch={...form};const {error}=await supabase.from("clubs").update(patch).eq("id",club.id);if(error){toast.error(error.message);return;}await audit({actorId:userId,action:"club.update",entityType:"club",entityId:club.id,clubId:club.id,before:Object.fromEntries(Object.keys(form).map(k=>[k,(club as any)[k]])),after:patch});setForm({});toast.success("נשמר");qc.invalidateQueries();}
+ async function toggle(){if(!club)return;const {error}=await supabase.from("clubs").update({active:!club.active}).eq("id",club.id);if(error)toast.error(error.message);else{await audit({actorId:userId,action:club.active?"club.disable":"club.enable",entityType:"club",entityId:club.id,clubId:club.id});qc.invalidateQueries();}}
+ if(!club)return null;return <div className="grid gap-6 lg:grid-cols-[1fr_320px]"><section className="panel grid gap-3 p-5 sm:grid-cols-2">{FIELDS.map(([key,label])=><label key={String(key)} className="space-y-1 text-sm"><span className="text-muted-foreground">{label}</span><Input value={String((merged as any)[key]??"")} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}<label className="space-y-1 text-sm"><span className="text-muted-foreground">שנת ייסוד</span><Input type="number" value={merged.founded_year??""} onChange={e=>setForm({...form,founded_year:e.target.value?Number(e.target.value):null})}/></label><label className="space-y-1 text-sm"><span className="text-muted-foreground">קיבולת אצטדיון</span><Input type="number" value={merged.stadium_capacity??""} onChange={e=>setForm({...form,stadium_capacity:e.target.value?Number(e.target.value):null})}/></label><div className="sm:col-span-2 flex gap-2"><Button variant="club" onClick={save}>שמירה</Button><Button variant="outline" onClick={toggle}>{club.active?"השבתת מועדון":"הפעלת מועדון"}</Button></div></section><aside style={clubAccentStyle(merged)} className="panel p-5"><p className="mb-2 text-sm text-muted-foreground">Preview as Club</p><div className="club-gradient rounded-2xl p-5">{merged.crest_url&&<img src={merged.crest_url} alt="" className="mb-3 size-16 object-contain"/>}<h3 className="text-xl font-black">{merged.name_he}</h3><p className="text-sm text-muted-foreground">{merged.stadium}</p><div className="mt-4 rounded-full bg-club py-2 text-center text-sm font-bold text-club-foreground">יאללה, נכנסים</div></div></aside></div>;
+}
