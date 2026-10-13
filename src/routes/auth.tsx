@@ -98,6 +98,18 @@ function AuthPage() {
     navigate({ to: "/" });
   }
 
+  async function resendVerification() {
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email, options: {
+        emailRedirectTo: appRedirectUrl(window.location.origin, import.meta.env.BASE_URL),
+      } });
+      if (error) toast.error('לא ניתן לשלוח כרגע. נסה שוב בעוד דקה.');
+      else toast.success('אם נדרש אימות לחשבון, קישור חדש יישלח לאימייל שלך.');
+    } catch { toast.error('השליחה נכשלה. בדוק את החיבור ונסה שוב.'); }
+    finally { setBusy(false); }
+  }
+
   async function forgot(e: React.FormEvent) {
     e.preventDefault();
     if (!validEmail(email)) {
@@ -132,8 +144,9 @@ function AuthPage() {
                 <>
                   <p className="font-semibold">שלחנו לך מייל אימות</p>
                   <p className="mt-1 text-muted-foreground">
-                    אשר את הכתובת {email} ואז חזור לכאן להתחברות.
+                    פתח את המייל שנשלח ל־{email} ולחץ על קישור האימות. בדוק גם בתיקיית הספאם.
                   </p>
+                  <button type="button" disabled={busy} className="mt-3 block w-full text-club underline disabled:opacity-50" onClick={resendVerification}>{busy ? 'שולחים…' : 'שליחת מייל אימות חדש'}</button>
                 </>
               ) : (
                 <>

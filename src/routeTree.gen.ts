@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ClubRouteImport } from './routes/club'
+import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NewsRouteImport } from './routes/news'
@@ -45,6 +46,11 @@ const AuthRoute = AuthRouteImport.update({
 const ClubRoute = ClubRouteImport.update({
   id: '/club',
   path: '/club',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
+  id: '/confirm-email',
+  path: '/confirm-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MatchesRoute = MatchesRouteImport.update({
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/club': typeof ClubRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/matches': typeof MatchesRoute
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/club': typeof ClubRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/matches': typeof MatchesRoute
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/club': typeof ClubRoute
+  '/confirm-email': typeof ConfirmEmailRoute
   '/matches': typeof MatchesRoute
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/club'
+    | '/confirm-email'
     | '/matches'
     | '/me'
     | '/news'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/club'
+    | '/confirm-email'
     | '/matches'
     | '/me'
     | '/news'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/club'
+    | '/confirm-email'
     | '/matches'
     | '/me'
     | '/news'
@@ -234,6 +246,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   ClubRoute: typeof ClubRoute
+  ConfirmEmailRoute: typeof ConfirmEmailRoute
   MatchesRoute: typeof MatchesRoute
   MeRoute: typeof MeRoute
   NewsRoute: typeof NewsRoute
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       path: '/club'
       fullPath: '/club'
       preLoaderRoute: typeof ClubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirm-email': {
+      id: '/confirm-email'
+      path: '/confirm-email'
+      fullPath: '/confirm-email'
+      preLoaderRoute: typeof ConfirmEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/matches': {
@@ -392,6 +412,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   ClubRoute: ClubRoute,
+  ConfirmEmailRoute: ConfirmEmailRoute,
   MatchesRoute: MatchesRoute,
   MeRoute: MeRoute,
   NewsRoute: NewsRoute,

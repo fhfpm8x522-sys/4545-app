@@ -40,7 +40,10 @@ function createSupabaseClient() {
     auth: {
       storage: brokeredPreviewStorage(),
       persistSession: true,
-      flowType: "pkce",
+      // Static Pages receives the session in a URL fragment (never sent to the
+      // host). Email links can be opened in a different browser; server builds
+      // retain PKCE. Custom TokenHash templates use verifyOtp on confirm-email.
+      flowType: import.meta.env.VITE_STATIC_PAGES === "true" ? "implicit" : "pkce",
       autoRefreshToken: true,
       detectSessionInUrl: true,
     },
