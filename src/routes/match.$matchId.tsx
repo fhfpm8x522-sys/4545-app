@@ -1,4 +1,5 @@
 import {MatchWinnerPoll} from "@/components/match-winner-poll";
+import {FanGuesses} from "@/components/fan-guesses";
 import {MatchLivePanels} from "@/components/match-live-panels";
 import {useFootballData} from "@/lib/football-query";
 import { assertResults } from "@/lib/runtime-utils.mjs";
@@ -10,7 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { NextMatchCard, matchState, type Match } from "@/components/next-match-card";
-import { useSession } from "@/lib/session";
+import { useSession, useProfile } from "@/lib/session";
 import { publicProfiles } from "@/lib/data";
 import { displayPlayerName } from "@/lib/app-types";
 import { Button } from "@/components/ui/button";
@@ -20,9 +21,10 @@ export const Route = createFileRoute("/match/$matchId")({ head: () => ({ meta: [
 
 function MatchCenter() {
   const { matchId } = Route.useParams(); const { user } = useSession(); const qc = useQueryClient();
+  const {data:profile}=useProfile(user?.id);
   const [attendanceBusy,setAttendanceBusy]=useState(false);
   const liveDetails=useFootballData("match",matchId,true);
-  const [home, setHome] = useState(""); const [away, setAway] = useState(""); const [chatText, setChatText] = useState("");
+  const [chatText, setChatText] = useState("");
   const { data, isLoading: dataLoading, error: dataError, refetch: retryData } = useQuery({ queryKey: ["match", matchId, user?.id], refetchInterval: 15000, queryFn: async () => {
     const [m, events, pred, att, chat] = await Promise.all([
       supabase.from("matches").select("*").eq("id", matchId).maybeSingle(),
@@ -41,11 +43,6 @@ function MatchCenter() {
   const { match, events, prediction, attended } = data; const state = matchState(match); const stats = normalizeStats(match.stats);
   const canPredict = (state === "upcoming" || state === "matchday") && Date.parse(match.kickoff) > Date.now();
 
-  async function savePrediction() {
-    if (!user || !canPredict || home === "" || away === "") return;
-    const { error } = await supabase.from("predictions").upsert({ user_id: user.id, match_id: matchId, home_score: Number(home), away_score: Number(away) }, { onConflict: "match_id,user_id" });
-    if (error) toast.error(error.message); else { toast.success("הניחוש נשמר"); qc.invalidateQueries({ queryKey: ["match", matchId] }); }
-  }
   async function toggleAttend() {
     if (!user || attendanceBusy) return;
     setAttendanceBusy(true);
@@ -62,7 +59,8 @@ function MatchCenter() {
   return <AppShell title="Match Center"><div className="space-y-4">
     <NextMatchCard match={match} />
     <MatchWinnerPoll matchId={matchId} userId={user?.id} homeName={match.home_name||"בית"} awayName={match.away_name||"חוץ"} open={canPredict} />
-    {canPredict && <section className="panel p-5"><h2 className="font-bold">ניחוש תוצאה</h2>{prediction && <p className="mt-1 text-xs text-muted-foreground">הניחוש שלך: {prediction.home_score}:{prediction.away_score}</p>}<div dir="ltr" className="mt-4 grid grid-cols-[1fr_auto_1fr] items-end gap-3"><ScoreInput label={match.home_name || "בית"} value={home} onChange={setHome} /><span className="pb-3 text-muted-foreground">:</span><ScoreInput label={match.away_name || "חוץ"} value={away} onChange={setAway} /></div><Button variant="club" size="xl" className="mt-3" disabled={!user || home === "" || away === ""} onClick={savePrediction}>שמור ניחוש</Button></section>}
+    <FanGuesses match={match} userId={user?.id} favoriteClubId={profile?.favorite_club_id} />
+    {prediction && <p className="text-xs text-muted-foreground">ניחוש התוצאה השמור שלך: {match.home_name} {prediction.home_score} · {match.away_name} {prediction.away_score}</p>}
     <Button disabled={attendanceBusy||!user} variant={attended ? "club" : "clubSoft"} size="xl" onClick={toggleAttend}>🏟️ {attendanceBusy ? "שומר…" : attended ? "הייתי שם ✓ — לחץ לביטול" : "הייתי שם"}</Button>
 
     {liveDetails.isFetching && <p className="text-xs text-muted-foreground">מעדכן נתוני משחק…</p>}
@@ -74,8 +72,6 @@ function MatchCenter() {
     <section><div className="mb-2 flex items-center justify-between"><h2 className="font-bold">MATCH CHAT</h2><span className="text-[10px] text-muted-foreground">שני מחנות האוהדים</span></div><div className="panel max-h-[420px] overflow-y-auto p-3">{data.chat.length === 0 && <p className="p-3 text-center text-xs text-muted-foreground">עוד אין הודעות. תהיה הראשון.</p>}{data.chat.map((m) => { const p=data.profiles.get(m.author_id); return <div key={m.id} className="border-b border-border py-2 last:border-0"><div className="flex items-center gap-2"><span className="text-[11px] font-bold text-club">{p?.display_name || p?.username || "אוהד"}</span>{p?.favorite_club_id && <span className="size-2 rounded-full bg-club/60" />}</div><p className="text-sm">{m.body}</p></div>; })}</div><div className="mt-2 flex gap-2"><Input value={chatText} onChange={(e) => setChatText(e.target.value)} placeholder="כתוב הודעה..." onKeyDown={(e) => { if (e.key === "Enter") sendChat(); }} /><Button variant="club" onClick={sendChat}>שלח</Button></div></section>
   </div></AppShell>;
 }
-
-function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) { return <label className="text-center text-xs text-muted-foreground"><span className="mb-1 block truncate">{label}</span><Input className="text-center text-2xl font-black" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, 2))} /></label>; }
 
 function Timeline({ events, match }: { events: any[]; match: Match }) {
   if (!events.length) return <section className="panel p-5 text-center text-sm text-muted-foreground">אין עדיין אירועים למשחק.</section>;

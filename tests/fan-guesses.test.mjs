@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {deriveGuessFacts,gradeGuess} from '../supabase/functions/match-guesses/model.mjs';
+const match={status:'finished'};
+const fixture={matchStatus:'FINISHED',homeTeamFtScore:'0',awayTeamFtScore:'2',homeTeamHalftimeScore:'0',awayTeamHalftimeScore:'0',cards:[{card:'yellow card'}],events:[{type:'GOAL',score:'0 - 1',awayScorerId:'11'},{type:'GOAL',score:'0 - 2',awayScorerId:'12'}]};
+test('canonical facts distinguish zero scores, halves and first scorer',()=>{const f=deriveGuessFacts(match,fixture,null,[{id:'local',goal_api_id:'11'}]);assert.equal(f.winner,'away');assert.equal(f.halftime,'draw');assert.equal(f.first_scorer,'local');assert.equal(f.yellows,'under');assert.equal(gradeGuess('exact_score',{home:0,away:2},f),25);});
+test('partial or missing provider data remains pending',()=>{const f=deriveGuessFacts(match,{...fixture,events:fixture.events.slice(1),cards:null,homeTeamHalftimeScore:null},null,[]);assert.equal(gradeGuess('first_team',{value:'away'},f),null);assert.equal(f.yellows,undefined);assert.equal(f.halftime,undefined);assert.deepEqual(deriveGuessFacts({status:'live'},fixture,null,[]),{});});
+test('own goals credit scoring team but never invent a scorer',()=>{const f=deriveGuessFacts(match,{...fixture,events:[{...fixture.events[0],info:'Own goal'},fixture.events[1]]},null,[]);assert.equal(f.first_team,'away');assert.equal(f.first_scorer,undefined);});
+test('first scorer skips own goals, resolves unordered feeds and handles own goals only',()=>{
+ const own={...fixture.events[0],info:'Own goal'};const regular=fixture.events[1];
+ assert.equal(deriveGuessFacts(match,{...fixture,events:[regular,own]},null,[{id:'second',goal_api_id:'12'}]).first_scorer,'second');
+ assert.equal(deriveGuessFacts(match,{...fixture,events:[own,{...regular,info:'Own goal'}]},null,[]).first_scorer,'none');
+ assert.equal(deriveGuessFacts(match,{...fixture,events:[own,{...regular,score:'1 - 2'}]},null,[{id:'second',goal_api_id:'12'}]).first_scorer,undefined);
+});
+test('lineups require eleven resolved unique player IDs and grade two points each',()=>{const p=Array.from({length:11},(_,i)=>({id:'u'+i,goal_api_id:String(i)}));const raw={home:{startingLineups:p.map(x=>({playerKey:x.goal_api_id}))}};const f=deriveGuessFacts({status:'scheduled'},null,raw,p);assert.equal(gradeGuess('lineup',{side:'home',players:p.map(x=>x.id)},f),22);assert.equal(gradeGuess('lineup',{side:'away',players:p.map(x=>x.id)},f),null);assert.deepEqual(deriveGuessFacts(match,null,{home:{startingLineups:Array(11).fill({playerKey:'0'})}},p),{});});
+test('regulation scores exclude extra time and a goalless match has no scorer',()=>{const f=deriveGuessFacts(match,{...fixture,homeTeamFtScore:0,awayTeamFtScore:0,awayTeamScore:2,awayTeamExtraScore:2},null,[]);assert.equal(f.goals,'under');assert.equal(f.first_scorer,'none');assert.equal(f.winner,'draw');assert.equal(gradeGuess('winner',{value:'home'},f),0);assert.equal(gradeGuess('winner',{value:'home'},{void:true}),0);});
