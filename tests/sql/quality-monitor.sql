@@ -1,0 +1,12 @@
+begin;
+select set_config('request.jwt.claim.sub',(select id::text from public.profiles where username='neorai18'),true);
+set local role authenticated;
+do $$declare quality jsonb;begin quality:=public.admin_football_quality();if not(quality ?& array['checked_at','freshness','duplicates','coverage']) then raise exception 'Missing monitoring sections';end if;if jsonb_typeof(quality->'coverage')<>'array' or jsonb_typeof(quality->'duplicates'->'events')<>'array' then raise exception 'Invalid shape';end if;end$$;
+reset role;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+set local role authenticated;
+do $$begin begin perform public.admin_football_quality();raise exception 'Non-owner was allowed';exception when others then if sqlerrm<>'Forbidden' then raise;end if;end;end$$;
+reset role;
+do $$begin if has_function_privilege('anon','public.admin_football_quality()','EXECUTE') then raise exception 'Anonymous can call monitor';end if;end$$;
+rollback;
+select jsonb_build_object('passed',true,'rolled_back',true,'checks',jsonb_build_array('Owner reads valid metadata','non-Owner denied','anonymous execution revoked')) as result;

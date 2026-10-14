@@ -9,6 +9,7 @@ import { AdminContext } from "@/lib/admin";
 export const Route = createFileRoute("/admin")({ head: () => ({ meta: [{ title: "ניהול — 45:45" }, { name:"robots",content:"noindex" }] }), component: AdminLayout });
 const NAV = [
   { to:"/admin/users",label:"משתמשים",perm:"users.view" },
+  { to:"/admin/quality",label:"איכות נתונים",perm:"owner.override" },
   { to:"/admin",label:"דשבורד",perm:null }, { to:"/admin/news",label:"חדשות ותור AI",perm:"news.review" }, { to:"/admin/songs",label:"שירים ווידג׳ט",perm:"chants.manage" }, { to:"/admin/clubs",label:"מועדונים",perm:"clubs.manage" }, { to:"/admin/staff",label:"צוות והרשאות",perm:"users.view" },
 ] as const;
 

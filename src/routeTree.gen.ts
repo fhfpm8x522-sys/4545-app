@@ -24,6 +24,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminClubsRouteImport } from './routes/admin.clubs'
 import { Route as AdminNewsRouteImport } from './routes/admin.news'
+import { Route as AdminQualityRouteImport } from './routes/admin.quality'
 import { Route as AdminSongsRouteImport } from './routes/admin.songs'
 import { Route as AdminStaffRouteImport } from './routes/admin.staff'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -106,6 +107,11 @@ const AdminNewsRoute = AdminNewsRouteImport.update({
   path: '/news',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminQualityRoute = AdminQualityRouteImport.update({
+  id: '/quality',
+  path: '/quality',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSongsRoute = AdminSongsRouteImport.update({
   id: '/songs',
   path: '/songs',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/quality': typeof AdminQualityRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/admin/users': typeof AdminUsersRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/quality': typeof AdminQualityRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/admin/users': typeof AdminUsersRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/quality': typeof AdminQualityRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/admin/users': typeof AdminUsersRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/clubs'
     | '/admin/news'
+    | '/admin/quality'
     | '/admin/songs'
     | '/admin/staff'
     | '/admin/users'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/clubs'
     | '/admin/news'
+    | '/admin/quality'
     | '/admin/songs'
     | '/admin/staff'
     | '/admin/users'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/admin/clubs'
     | '/admin/news'
+    | '/admin/quality'
     | '/admin/songs'
     | '/admin/staff'
     | '/admin/users'
@@ -402,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminNewsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/quality': {
+      id: '/admin/quality'
+      path: '/quality'
+      fullPath: '/admin/quality'
+      preLoaderRoute: typeof AdminQualityRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/songs': {
       id: '/admin/songs'
       path: '/songs'
@@ -450,6 +469,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminClubsRoute: typeof AdminClubsRoute
   AdminNewsRoute: typeof AdminNewsRoute
+  AdminQualityRoute: typeof AdminQualityRoute
   AdminSongsRoute: typeof AdminSongsRoute
   AdminStaffRoute: typeof AdminStaffRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -459,6 +479,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminClubsRoute: AdminClubsRoute,
   AdminNewsRoute: AdminNewsRoute,
+  AdminQualityRoute: AdminQualityRoute,
   AdminSongsRoute: AdminSongsRoute,
   AdminStaffRoute: AdminStaffRoute,
   AdminUsersRoute: AdminUsersRoute,

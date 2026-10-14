@@ -10,22 +10,24 @@ export function finiteNumber(...values) {
   for(const value of values){if(value===null||value===undefined||value==='')continue;const n=Number(String(value).replace('%',''));if(Number.isFinite(n))return n;}
   return null;
 }
-export function standingsRows(raw) {
+export function standingsRows(raw, scope="overall") {
   const rows=providerRows(raw);
   // Some providers mix an old play-off table with the current league stage.
   const current=rows.filter(row=>String(row.stageName??'').toLowerCase()==='current');
-  return (current.length?current:rows).map(row=>({
-    position:finiteNumber(row.position,row.rank,row.overallLeaguePosition,row.overall_league_position,row.standing_place),
+  const prefix=scope==='home'?'homeLeague':scope==='away'?'awayLeague':'overallLeague';
+  const value=(row,field,...aliases)=>finiteNumber(row[prefix+field],...(scope==='overall'?aliases:[]));
+  return (current.length?current:rows).map(row=>{const position=value(row,'Position',row.position,row.rank,row.overall_league_position,row.standing_place);return {
+    position:position!==null&&position>0?position:null,
     teamId:String(row.teamId??row.team?.id??row.team_id??''),
     name:row.teamName??row.team?.name??row.team_name??row.name??'קבוצה',
-    played:finiteNumber(row.played,row.matchesPlayed,row.overallLeaguePlayed,row.overallLeaguePayed,row.overall_league_payed),
-    wins:finiteNumber(row.wins,row.won,row.overallLeagueW,row.overall_league_W),
-    draws:finiteNumber(row.draws,row.drawn,row.overallLeagueD,row.overall_league_D),
-    losses:finiteNumber(row.losses,row.lost,row.overallLeagueL,row.overall_league_L),
-    gf:finiteNumber(row.goalsFor,row.goals_for,row.overallLeagueGF,row.overall_league_GF),
-    ga:finiteNumber(row.goalsAgainst,row.goals_against,row.overallLeagueGA,row.overall_league_GA),
-    points:finiteNumber(row.points,row.overallLeaguePTS,row.overall_league_PTS),group:row.group??row.stageName??null,
-  })).sort((a,b)=>(a.position??999)-(b.position??999));
+    played:value(row,'Played',row.played,row.matchesPlayed,row.overallLeaguePayed,row.overall_league_payed),
+    wins:value(row,'W',row.wins,row.won,row.overall_league_W),
+    draws:value(row,'D',row.draws,row.drawn,row.overall_league_D),
+    losses:value(row,'L',row.losses,row.lost,row.overall_league_L),
+    gf:value(row,'GF',row.goalsFor,row.goals_for,row.overall_league_GF),
+    ga:value(row,'GA',row.goalsAgainst,row.goals_against,row.overall_league_GA),
+    points:value(row,'PTS',row.points,row.overall_league_PTS),group:row.group??row.stageName??null,
+  }}).sort((a,b)=>(a.position??999)-(b.position??999));
 }
 export function formationBands(formation,players) {
   const sorted=[...players].sort((a,b)=>Number(a.lineupPosition??a.position??999)-Number(b.lineupPosition??b.position??999));
