@@ -4,7 +4,7 @@ import {standingsRows} from "@/lib/football-model.mjs";
 import {footballCompetitionBucket} from "@/lib/data";
 import { assertResults } from "@/lib/runtime-utils.mjs";
 import { QueryFeedback } from "@/components/query-feedback";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -60,6 +60,7 @@ function ClubPage() {
 
     <div className="my-4 flex gap-2 overflow-x-auto hide-scrollbar">{TABS.map((t) => <button key={t.key} onClick={() => setTab(t.key)} className={cn("shrink-0 rounded-full border px-4 py-2 text-sm", tab === t.key ? "border-club bg-club/15 text-club" : "border-border text-muted-foreground")}>{t.label}</button>)}</div>
 
+    <Link to="/players" className="mb-4 inline-block rounded-xl border border-club/30 bg-club/10 px-4 py-2 text-sm font-bold text-club">השוואת שחקנים מכל הקבוצות ←</Link>
     {football.isFetching && <p className="mb-3 text-xs text-muted-foreground">מעדכן דירוגים ונתוני שחקנים מהספק…</p>}
     {football.error && <p className="mb-3 text-xs text-muted-foreground">נתוני הספק אינם זמינים כרגע. נתונים קיימים נשמרים.</p>}
     {tab === "tables" && <CompetitionTables competitions={competitions} teamId={club.goal_team_id} />}
@@ -68,7 +69,7 @@ function ClubPage() {
       <div className="panel divide-y divide-border p-2 text-sm">{([ ["מלך השערים", top("goals"), "goals"], ["מלך הבישולים", top("assists"), "assists"], ["הכי הרבה דקות", top("minutes"), "minutes"] ] as const).map(([l,p,k]) => <div key={l} className="flex justify-between p-3"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{p ? `${displayPlayerName(p)} · ${p.season?.[k] ?? 0}` : "—"}</span></div>)}</div>
     </div>}
 
-    {tab === "squad" && <div className="space-y-5">{players.length === 0 && <p className="panel p-4 text-sm text-muted-foreground">הסגל עוד לא הוזן.</p>}{POSITIONS.map(([pos,label]) => { const group = players.filter((p) => normalizePosition(p.goal_position || p.position) === pos); if (!group.length) return null; return <div key={pos}><h3 className="mb-2 text-sm font-bold text-muted-foreground">{label}</h3><div className="grid grid-cols-2 gap-2">{group.map((p) => <div key={p.id} className="panel flex items-center gap-3 p-3">{p.image_url ? <img src={p.image_url} alt="" className="size-12 rounded-full object-cover" /> : <span className="display-title w-10 text-2xl text-club">{p.number ?? p.shirt_number ?? "—"}</span>}<div className="min-w-0"><p className="truncate text-sm font-semibold">{displayPlayerName(p)}</p><p className="text-[11px] text-muted-foreground">{p.season?.goals ?? "—"} שערים · {p.season?.appearances ?? "—"} הופעות</p>{p.injured && <p className="text-[10px] text-destructive">פצוע</p>}</div></div>)}</div></div>; })}</div>}
+    {tab === "squad" && <div className="space-y-5">{players.length === 0 && <p className="panel p-4 text-sm text-muted-foreground">הסגל עוד לא הוזן.</p>}{POSITIONS.map(([pos,label]) => { const group = players.filter((p) => normalizePosition(p.goal_position || p.position) === pos); if (!group.length) return null; return <div key={pos}><h3 className="mb-2 text-sm font-bold text-muted-foreground">{label}</h3><div className="grid grid-cols-2 gap-2">{group.map((p) => <Link to="/player/$playerId" params={{playerId:p.id}} key={p.id} className="panel flex items-center gap-3 p-3">{p.image_url ? <img src={p.image_url} alt="" className="size-12 rounded-full object-cover" /> : <span className="display-title w-10 text-2xl text-club">{p.number ?? p.shirt_number ?? "—"}</span>}<div className="min-w-0"><p className="truncate text-sm font-semibold">{displayPlayerName(p)}</p><p className="text-[11px] text-muted-foreground">{p.season?.goals ?? "—"} שערים · {p.season?.appearances ?? "—"} הופעות</p>{p.injured && <p className="text-[10px] text-destructive">פצוע לפי הספק</p>}</div></Link>)}</div></div>; })}</div>}
 
     {tab === "stats" && <div className="panel divide-y divide-border p-2 text-sm">{[["שערי זכות", s?.goals_for ?? derived.gf], ["שערי חובה", s?.goals_against ?? derived.ga], ["ניצחונות", s?.wins ?? derived.wins], ["תיקו", s?.draws ?? derived.draws], ["הפסדים", s?.losses ?? derived.losses], ["ממוצע שערים", (s?.played ?? derived.played) ? Number((Number(s?.goals_for ?? derived.gf) / Number(s?.played ?? derived.played)).toFixed(2)) : "—"]].map(([l,v]) => <div key={String(l)} className="flex justify-between p-3"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{v ?? 0}</span></div>)}</div>}
 

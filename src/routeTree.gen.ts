@@ -19,6 +19,7 @@ import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminClubsRouteImport } from './routes/admin.clubs'
@@ -28,6 +29,7 @@ import { Route as AdminStaffRouteImport } from './routes/admin.staff'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as ArticleNewsIdRouteImport } from './routes/article.$newsId'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
+import { Route as PlayerPlayerIdRouteImport } from './routes/player.$playerId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -79,6 +81,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayersRoute = PlayersRouteImport.update({
+  id: '/players',
+  path: '/players',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -124,6 +131,11 @@ const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
   path: '/match/$matchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayerPlayerIdRoute = PlayerPlayerIdRouteImport.update({
+  id: '/player/$playerId',
+  path: '/player/$playerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
   '/onboarding': typeof OnboardingRoute
+  '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
@@ -144,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
+  '/player/$playerId': typeof PlayerPlayerIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -156,6 +170,7 @@ export interface FileRoutesByTo {
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
   '/onboarding': typeof OnboardingRoute
+  '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
@@ -164,6 +179,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
+  '/player/$playerId': typeof PlayerPlayerIdRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -178,6 +194,7 @@ export interface FileRoutesById {
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
   '/onboarding': typeof OnboardingRoute
+  '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
@@ -186,6 +203,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
   '/match/$matchId': typeof MatchMatchIdRoute
+  '/player/$playerId': typeof PlayerPlayerIdRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -201,6 +219,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/news'
     | '/onboarding'
+    | '/players'
     | '/reset-password'
     | '/admin/clubs'
     | '/admin/news'
@@ -209,6 +228,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/article/$newsId'
     | '/match/$matchId'
+    | '/player/$playerId'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -221,6 +241,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/news'
     | '/onboarding'
+    | '/players'
     | '/reset-password'
     | '/admin/clubs'
     | '/admin/news'
@@ -229,6 +250,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/article/$newsId'
     | '/match/$matchId'
+    | '/player/$playerId'
     | '/admin'
   id:
     | '__root__'
@@ -242,6 +264,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/news'
     | '/onboarding'
+    | '/players'
     | '/reset-password'
     | '/admin/clubs'
     | '/admin/news'
@@ -250,6 +273,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/article/$newsId'
     | '/match/$matchId'
+    | '/player/$playerId'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -264,9 +288,11 @@ export interface RootRouteChildren {
   MeRoute: typeof MeRoute
   NewsRoute: typeof NewsRoute
   OnboardingRoute: typeof OnboardingRoute
+  PlayersRoute: typeof PlayersRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ArticleNewsIdRoute: typeof ArticleNewsIdRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
+  PlayerPlayerIdRoute: typeof PlayerPlayerIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -341,6 +367,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/players': {
+      id: '/players'
+      path: '/players'
+      fullPath: '/players'
+      preLoaderRoute: typeof PlayersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -404,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MatchMatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/player/$playerId': {
+      id: '/player/$playerId'
+      path: '/player/$playerId'
+      fullPath: '/player/$playerId'
+      preLoaderRoute: typeof PlayerPlayerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -438,9 +478,11 @@ const rootRouteChildren: RootRouteChildren = {
   MeRoute: MeRoute,
   NewsRoute: NewsRoute,
   OnboardingRoute: OnboardingRoute,
+  PlayersRoute: PlayersRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ArticleNewsIdRoute: ArticleNewsIdRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
+  PlayerPlayerIdRoute: PlayerPlayerIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

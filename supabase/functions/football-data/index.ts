@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {publicFootballPayload} from './privacy.mjs';
 const url=Deno.env.get('SUPABASE_URL')!;
 const serviceKey=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const goalKey=Deno.env.get('GOAL_API_KEY');
@@ -67,6 +68,18 @@ async function matchData(id:string){
  if(hs!==null&&as!==null)await db.from('matches').update({home_score:hs,away_score:as,goal_updated_at:new Date().toISOString()}).eq('id',id);
  return {fixture:f,lineups:lineups.data,statistics:statistics.data,commentary:commentary.data,news:news.data,coverage:{lineups:lineups.error,statistics:statistics.error,commentary:commentary.error,news:news.error},errors:[fixture.error,lineups.error,statistics.error,commentary.error,news.error].filter(Boolean),updatedAt:new Date().toISOString()};
 }
+async function playerData(id:string,selectedSeason:string){
+ const player=await db.from('players').select('*').eq('id',id).single();if(player.error)throw Error('Player not found');
+ const stored=await db.from('player_season_stats').select('*').eq('player_id',id).eq('season',selectedSeason.replace('-','/')).maybeSingle();
+ if(stored.error)throw Error('Player statistics unavailable');
+ const pid=player.data.goal_player_id||player.data.goal_api_id;
+ const result=validId(pid)?await safe(`/players/${pid}/statistics?season=${selectedSeason}`,21600):{data:null,error:'Provider player ID missing'};
+ const current=totals(result.data),known=Object.fromEntries(Object.entries(current).filter(([,v])=>v!==null));
+ const stats={...stored.data,...known};
+ if(Object.keys(known).length){const row={player_id:id,season:selectedSeason.replace('-','/'),...known};const saved=stored.data?await db.from('player_season_stats').update(row).eq('id',stored.data.id):await db.from('player_season_stats').insert(row);if(saved.error)throw Error('Player statistics save failed');}
+ const cached=validId(pid)?await db.from('football_cache').select('updated_at').eq('cache_key',`/players/${pid}/statistics?season=${selectedSeason}`).maybeSingle():{data:null};
+ return {player:player.data,stats,season:selectedSeason.replace('-','/'),source:'GOAL API',updatedAt:cached.data?.updated_at??null,error:result.error};
+}
 Deno.serve(async request=>{
  const origin=request.headers.get('origin')??'';const allowed=['https://fhfpm8x522-sys.github.io','http://127.0.0.1:4173','http://localhost:5173'];
  const headers={'Access-Control-Allow-Origin':allowed.includes(origin)?origin:'https://fhfpm8x522-sys.github.io','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS','Vary':'Origin'};
@@ -83,7 +96,10 @@ Deno.serve(async request=>{
  user=!privileged.error;
  }
  if(!user)return Response.json({error:'Authentication required'},{status:401,headers});
- try{const {mode,id}=await request.json();if(mode==='push-config')return Response.json({publicKey:Deno.env.get('VAPID_PUBLIC_KEY')??null},{headers});if(!validId(id)||!['club','match'].includes(mode))return Response.json({error:'Invalid request'},{status:400,headers});
- return Response.json(mode==='club'?await clubData(id):await matchData(id),{headers});
+ try{const {mode,id,season:requestedSeason}=await request.json();if(mode==='push-config')return Response.json({publicKey:Deno.env.get('VAPID_PUBLIC_KEY')??null},{headers});if(!validId(id)||!['club','match','player'].includes(mode))return Response.json({error:'Invalid request'},{status:400,headers});
+ const selectedSeason=requestedSeason?String(requestedSeason).replace('/','-'):season;
+ if(!/^20\d{2}-20\d{2}$/.test(selectedSeason)||Number(selectedSeason.slice(5))-Number(selectedSeason.slice(0,4))!==1)return Response.json({error:'Invalid season'},{status:400,headers});
+ const payload=mode==='club'?await clubData(id):mode==='player'?await playerData(id,selectedSeason):await matchData(id);
+ return Response.json(publicFootballPayload(payload,[serviceKey,goalKey]),{headers});
  }catch(e){return Response.json({error:e instanceof Error?e.message:'Football data unavailable'},{status:502,headers});}
 });
