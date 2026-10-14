@@ -1,3 +1,5 @@
+import {MatchTimeline} from '@/components/match-timeline';
+import {MatchHistory} from '@/components/match-history';
 import {MatchWinnerPoll} from "@/components/match-winner-poll";
 import {FanGuesses} from "@/components/fan-guesses";
 import {PersonalMatchTools} from "@/components/personal-match-tools";
@@ -60,6 +62,7 @@ function MatchCenter() {
 
   return <AppShell title="Match Center"><div className="space-y-4">
     <NextMatchCard match={match} />
+    <MatchHistory match={match} />
     <PersonalMatchTools match={match} userId={user?.id} profile={profile} />
     <MatchWinnerPoll matchId={matchId} userId={user?.id} homeName={match.home_name||"בית"} awayName={match.away_name||"חוץ"} open={canPredict} />
     <FanGuesses match={match} userId={user?.id} favoriteClubId={profile?.favorite_club_id} />
@@ -68,7 +71,7 @@ function MatchCenter() {
 
     {liveDetails.isFetching && <p className="text-xs text-muted-foreground">מעדכן נתוני משחק…</p>}
     <MatchLivePanels data={liveDetails.data} homeName={match.home_name||"בית"} awayName={match.away_name||"חוץ"} />
-    {(state === "live" || state === "finished") && <Timeline events={events} match={match} />}
+    {(state === "live" || state === "finished") && <MatchTimeline events={events} match={match} />}
 
     {Object.keys(stats).length > 0 && <section className="panel space-y-3 p-5"><h2 className="font-bold">סטטיסטיקה</h2>{Object.entries(stats).map(([label,[h,a]]) => { const total=h+a||1; return <div key={label} className="text-sm"><div className="flex justify-between"><span>{h}</span><span className="text-muted-foreground">{label}</span><span>{a}</span></div><div className="mt-1 flex h-1.5 overflow-hidden rounded-full bg-muted"><span className="bg-club" style={{ width: `${(h/total)*100}%` }} /></div></div>; })}</section>}
 
@@ -76,19 +79,4 @@ function MatchCenter() {
   </div></AppShell>;
 }
 
-function Timeline({ events, match }: { events: any[]; match: Match }) {
-  if (!events.length) return <section className="panel p-5 text-center text-sm text-muted-foreground">אין עדיין אירועים למשחק.</section>;
-  const sorted=[...events].sort((a,b)=>Number(b.minute??0)-Number(a.minute??0));
-  return <section className="panel overflow-hidden"><div dir="ltr" className="grid grid-cols-[1fr_58px_1fr] items-center border-b border-border p-3 text-xs font-bold"><TeamHead name={match.home_name || "בית"} logo={match.home_logo_url} /><span /><TeamHead name={match.away_name || "חוץ"} logo={match.away_logo_url} reverse /></div><div>{sorted.map((e) => <EventRow key={e.id} event={e} />)}</div></section>;
-}
-function TeamHead({ name, logo, reverse=false }: { name:string; logo:string|null; reverse?:boolean }) { return <div className={`flex items-center gap-2 ${reverse?"justify-end":""}`}>{reverse && <span className="truncate">{name}</span>}{logo ? <img src={logo} alt="" className="size-7 object-contain" /> : <span className="size-7 rounded-full bg-muted" />}{!reverse && <span className="truncate">{name}</span>}</div>; }
-function EventRow({ event }: { event:any }) {
-  const home=String(event.team_side||"").toLowerCase()==="home"; const type=String(event.event_type||"").toLowerCase();
-  const primary=displayPlayerName(event.player, event.player_name); const secondary=displayPlayerName(event.secondary_player, event.secondary_player_name);
-  const content=<div className={`flex items-center gap-2 ${home?"justify-end text-right":""}`}>
-    {!home && <EventIcon type={type} />}{event.player?.image_url && <img src={event.player.image_url} alt="" className="size-8 rounded-full object-cover" />}<div className="min-w-0"><p className="truncate text-xs font-bold">{primary}</p>{type==="goal" && event.secondary_player_name && <p className="truncate text-[10px] text-muted-foreground">בישול: {secondary}</p>}{type==="substitution" && <p className="text-[10px]"><span className="text-destructive">↓ {primary}</span>{event.secondary_player_name && <><br/><span className="text-green-500">↑ {secondary}</span></>}</p>}{event.score && type==="goal" && <p className="text-[10px] text-muted-foreground" dir="ltr">{event.score}</p>}</div>{home && <EventIcon type={type} />}
-  </div>;
-  return <div dir="ltr" className="grid min-h-16 grid-cols-[1fr_58px_1fr] items-center border-b border-border/70 px-2 last:border-0"><div>{home?content:null}</div><div className="relative flex h-full items-center justify-center"><span className="absolute inset-y-0 w-px bg-border"/><span className="relative rounded-full border border-border bg-background px-2 py-1 text-xs font-bold" dir="ltr">{Number(event.minute??0)}׳</span></div><div>{!home?content:null}</div></div>;
-}
-function EventIcon({ type }: { type:string }) { if(type.includes("goal"))return <span>⚽</span>; if(type==="yellow_card")return <span>🟨</span>; if(type==="red_card")return <span>🟥</span>; if(type==="substitution")return <span>🔁</span>; return <span>•</span>; }
 function normalizeStats(raw: unknown): Record<string,[number,number]> { if(!raw||typeof raw!=="object"||Array.isArray(raw)) return {}; const out:Record<string,[number,number]>={}; for(const [k,v] of Object.entries(raw as Record<string,unknown>)){ if(Array.isArray(v)&&v.length>=2) out[k]=[Number(v[0])||0,Number(v[1])||0]; } return out; }

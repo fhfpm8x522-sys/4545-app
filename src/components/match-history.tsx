@@ -1,0 +1,10 @@
+import {useQuery} from '@tanstack/react-query';
+import {Link} from '@tanstack/react-router';
+import {supabase} from '@/integrations/supabase/client';
+import {headToHead} from '@/lib/match-insights.mjs';
+import {QueryFeedback} from '@/components/query-feedback';
+export function MatchHistory({match}:{match:any}) {
+ const history=useQuery({queryKey:['h2h',match.home_club_id,match.away_club_id,match.id],enabled:!!match.home_club_id&&!!match.away_club_id,queryFn:async()=>{const r=await supabase.from('matches').select('id,kickoff,status,home_club_id,away_club_id,home_name,away_name,home_score,away_score,competition').in('home_club_id',[match.home_club_id,match.away_club_id]).in('away_club_id',[match.home_club_id,match.away_club_id]).eq('status','finished').lt('kickoff',match.kickoff).order('kickoff',{ascending:false}).limit(20);if(r.error)throw r.error;return headToHead(match,r.data??[])}});
+ const rows=history.data??[];const stats=rows.reduce((out,r)=>{const h=r.home_club_id===match.home_club_id?r.home_score:r.away_score,a=r.home_club_id===match.home_club_id?r.away_score:r.home_score;out[h>a?'home':h<a?'away':'draw']++;return out},{home:0,away:0,draw:0});
+ return <details className="panel p-4"><summary className="cursor-pointer font-bold">מפגשים קודמים בין הקבוצות</summary><QueryFeedback loading={history.isLoading} error={history.error} retry={history.refetch}/>{!history.isLoading&&!history.error&&<><p className="my-3 text-xs text-muted-foreground">{rows.length?`ב־${rows.length} המפגשים האחרונים שיש במאגר: ${match.home_name} ${stats.home} ניצחונות · ${stats.draw} תיקו · ${match.away_name} ${stats.away} ניצחונות`:'אין עדיין מפגשים קודמים עם תוצאה מאומתת במאגר.'}</p><div className="divide-y divide-border">{rows.map(r=><Link key={r.id} to="/match/$matchId" params={{matchId:r.id}} className="block py-2 text-xs"><bdi>{new Date(r.kickoff).toLocaleDateString('he-IL')}</bdi> · {r.competition}<div dir="ltr" className="mt-1 flex justify-between gap-2"><span dir="rtl">{r.home_name}</span><b>{r.home_score}:{r.away_score}</b><span dir="rtl">{r.away_name}</span></div></Link>)}</div></>}</details>;
+}

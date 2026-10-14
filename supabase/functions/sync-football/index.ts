@@ -222,6 +222,8 @@ function eventMinute(event: J): number | null {
   return fallback !== null && fallback >= 0 ? fallback : null;
 }
 
+function eventClockFields(event:J):J {const raw=pick(event.minute,event.time,event.elapsed);const added=typeof raw==='string'?raw.match(/^(\d+)\s*\+\s*(\d+)$/):null;if(added)return {minute_base:Number(added[1]),added_minute:Number(added[2])};const base=n(raw);return {minute_base:base,added_minute:null};}
+
 function stableEventId(fixtureId: string, event: J): string {
   return JSON.stringify([fixtureId,event.event_type,event.minute,event.team_side,event.player_id ?? event.player_name ?? null,event.secondary_player_id ?? event.secondary_player_name ?? null]);
 }
@@ -907,6 +909,7 @@ async function syncMatchEvents(match: J) {
     output.push({
       match_id: match.id,
       minute: minute(e),
+      ...eventClockFields(e),
       event_type: "goal",
       club_id: null,
 
@@ -967,6 +970,7 @@ async function syncMatchEvents(match: J) {
     output.push({
       match_id: match.id,
       minute: minute(c),
+      ...eventClockFields(c),
       event_type: type,
       club_id: null,
 
@@ -1006,6 +1010,7 @@ async function syncMatchEvents(match: J) {
     output.push({
       match_id: match.id,
       minute: minute(sub),
+      ...eventClockFields(sub),
       event_type: "substitution",
       club_id: null,
 
