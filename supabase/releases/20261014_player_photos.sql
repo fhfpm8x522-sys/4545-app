@@ -1,0 +1,4 @@
+begin;
+update public.players set image_url='https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Idan_Cohen_Hapoel_2018.jpg/500px-Idan_Cohen_Hapoel_2018.jpg',image_source_url='https://commons.wikimedia.org/wiki/File:Idan_Cohen_Hapoel_2018.jpg',image_credit='Sebastian27 · CC BY-SA 4.0',image_license_url='https://creativecommons.org/licenses/by-sa/4.0' where id='ce08730c-1489-43aa-bfa7-1e0928380ef3'::uuid and coalesce(image_url,'')='';
+update public.players set image_url='https://upload.wikimedia.org/wikipedia/commons/e/ee/%D7%90%D7%99%D7%9C%D7%99%D7%99_%D7%9E%D7%93%D7%9E%D7%95%D7%9F-1.jpg',image_source_url='https://commons.wikimedia.org/wiki/File:%D7%90%D7%99%D7%9C%D7%99%D7%99_%D7%9E%D7%93%D7%9E%D7%95%D7%9F-1.jpg',image_credit='Crocodile2020 · CC0',image_license_url='http://creativecommons.org/publicdomain/zero/1.0/deed.en' where id='0e840927-511b-4bb7-a2c5-b7076cad12c4'::uuid and coalesce(image_url,'')='';
+commit;

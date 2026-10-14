@@ -1,3 +1,4 @@
+import {MyPublicPhotos} from '@/components/my-public-photos';
 import {enablePush,disablePush} from "@/lib/push";
 import { oneRelation, assertResults } from "@/lib/runtime-utils.mjs";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
@@ -52,14 +53,16 @@ function MePage() {
     </section>
 
     <section className="panel mt-4 divide-y divide-border p-2 text-sm"><Row label="סה״כ ניחושים" value={stats?.total ?? 0} /><Row label="ניחושים מדויקים" value={stats?.exact ?? 0} /><Row label="כיוון נכון" value={stats?.dir ?? 0} /></section>
-    <Link to="/diary" className="panel mt-4 block p-5 font-bold text-club">📖 היומן, נסיעות החוץ והאלבום הפרטי שלי ←</Link>
+    <Link to="/fan/$username" params={{username:profile.username}} className="panel mt-4 block p-4 text-sm text-club">הצג את הפרופיל והאלבום הציבורי שלי ←</Link>
+    <Link to="/diary" className="panel mt-4 block p-5 font-bold text-club">📖 היומן, נסיעות החוץ והאלבומים שלי ←</Link>
 
     <section className="panel mt-4 p-5"><h2 className="font-bold">הקבוצה שלי</h2><p className="mt-1 text-sm text-muted-foreground">קבוצה נוכחית: {profile.club?.name_he}</p>{daysLeft > 0 ? <p className="mt-2 text-sm">ניתן לשנות שוב בעוד {daysLeft} ימים.</p> : <Button variant="clubSoft" className="mt-3" onClick={() => setPicking((p) => !p)}>החלפת קבוצה</Button>}
       {picking && <div className="mt-3 grid grid-cols-2 gap-2">{clubs?.map((c) => <button key={c.id} onClick={() => changeClub(c.id)} className="rounded-xl border border-border p-3 text-right text-sm">{c.name_he}</button>)}<p className="col-span-2 text-xs text-muted-foreground">לאחר ההחלפה תוכל להחליף שוב רק בעוד 30 יום.</p></div>}
     </section>
 
-    <section className="panel mt-4 p-5"><h2 className="mb-3 font-bold">התראות</h2><p className="mb-3 text-xs text-muted-foreground">Push מגיע גם כשהאפליקציה סגורה. באייפון: הוסף למסך הבית מתוך Safari ואז הפעל. {savingPrefs ? "שומר…" : ""}</p><Toggle label="התראות Push" checked={prefs["push_enabled"] ?? false} onChange={(v) => setNotification("push_enabled", v)} /><Toggle label="חדשות חשובות" checked={prefs["important_news"] ?? true} onChange={(v) => setNotification("important_news", v)} /><Toggle label="הודעות רשמיות" checked={prefs["official_news"] ?? true} onChange={(v) => setNotification("official_news", v)} /><Toggle label="התראות משחק" checked={prefs["match_alerts"] ?? true} onChange={(v) => setNotification("match_alerts", v)} /><Toggle label="סיום משחק" checked={prefs["full_time"] ?? true} onChange={(v) => setNotification("full_time", v)} /><Toggle label="שערים" checked={prefs["goals"] ?? true} onChange={(v) => setNotification("goals", v)} /><Toggle label="הרכבים" checked={prefs["lineups"] ?? true} onChange={(v) => setNotification("lineups", v)} /></section>
+    <section className="panel mt-4 p-5"><h2 className="mb-3 font-bold">התראות</h2><p className="mb-3 text-xs text-muted-foreground">Push מגיע גם כשהאפליקציה סגורה. באייפון: הוסף למסך הבית מתוך Safari ואז הפעל. {savingPrefs ? "שומר…" : ""}</p><Toggle label="התראות Push" checked={prefs["push_enabled"] ?? false} onChange={(v) => setNotification("push_enabled", v)} /><Toggle label="חדשות חשובות" checked={prefs["important_news"] ?? true} onChange={(v) => setNotification("important_news", v)} /><Toggle label="הודעות רשמיות" checked={prefs["official_news"] ?? true} onChange={(v) => setNotification("official_news", v)} /><Toggle label="התראות משחק" checked={prefs["match_alerts"] ?? true} onChange={(v) => setNotification("match_alerts", v)} /><Toggle label="סיום משחק" checked={prefs["full_time"] ?? true} onChange={(v) => setNotification("full_time", v)} /><Toggle label="שערים" checked={prefs["goals"] ?? true} onChange={(v) => setNotification("goals", v)} /><Toggle label="בדיקות והחלטות VAR" checked={prefs["var_alerts"] ?? true} onChange={(v) => setNotification("var_alerts", v)} /><Toggle label="הרכבים" checked={prefs["lineups"] ?? true} onChange={(v) => setNotification("lineups", v)} /></section>
     {user && <><Link to="/offline" className="mt-4 block text-sm text-club underline">📶 נתונים אחרונים למצב לא מקוון</Link><QuietHours userId={user.id} prefs={prefs} /><ExportPersonalData user={user} /></>}
+    {user&&<MyPublicPhotos userId={user.id}/>}
     <Button variant="ghost" size="xl" className="mt-4 text-destructive" onClick={signOut}>התנתקות</Button>
   </AppShell>;
 }

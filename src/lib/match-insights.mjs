@@ -1,7 +1,7 @@
 import { finiteNumber, matchStats, lineupsSides } from './football-model.mjs';
 export function eventKind(event) {
  const raw=String(event.raw_type??event.event_type??'').toLowerCase().replace(/[ _-]/g,'');
- if(raw.includes('var')||raw.includes('cancel')||raw.includes('disallow'))return {category:'var',label:raw.includes('cancel')||raw.includes('disallow')?'VAR — שער בוטל':'בדיקת VAR',icon:'📺'};
+ if(raw.includes('var')||raw.includes('cancel')||raw.includes('disallow'))return {category:'var',label:raw.includes('cancel')||raw.includes('disallow')?(raw.includes('var')?'VAR — שער בוטל':'שער נפסל'):'בדיקת VAR',icon:'📺'};
  if(raw.includes('penalty')&&raw.includes('miss'))return {category:'other',label:'פנדל הוחמץ',icon:'✕'};
  if(raw.includes('owngoal'))return {category:'goal',label:'שער עצמי',icon:'⚽'};
  if(raw.includes('penalty')&&!raw.includes('miss'))return {category:'goal',label:'שער בפנדל',icon:'⚽'};

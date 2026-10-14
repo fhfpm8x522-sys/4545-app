@@ -1,0 +1,2 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {transliterateName} from '../src/lib/name-hebrew.mjs';
+test('existing Hebrew names stay intact; dictionary and initials are consistent',()=>{assert.equal(transliterateName('עומר אצילי'),'עומר אצילי');assert.equal(transliterateName('Niv Antman'),'ניב אנטמן');assert.equal(transliterateName('D. David'),'ד. דויד');assert.equal(transliterateName(null),'');});

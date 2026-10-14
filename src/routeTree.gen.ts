@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ClubRouteImport } from './routes/club'
+import { Route as ClubsRouteImport } from './routes/clubs'
 import { Route as ConfirmEmailRouteImport } from './routes/confirm-email'
 import { Route as DiaryRouteImport } from './routes/diary'
 import { Route as MatchesRouteImport } from './routes/matches'
@@ -22,16 +23,22 @@ import { Route as OfflineRouteImport } from './routes/offline'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as StadiumsRouteImport } from './routes/stadiums'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminClubsRouteImport } from './routes/admin.clubs'
 import { Route as AdminNewsRouteImport } from './routes/admin.news'
+import { Route as AdminPhotosRouteImport } from './routes/admin.photos'
 import { Route as AdminQualityRouteImport } from './routes/admin.quality'
 import { Route as AdminSongsRouteImport } from './routes/admin.songs'
 import { Route as AdminStaffRouteImport } from './routes/admin.staff'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as ArticleNewsIdRouteImport } from './routes/article.$newsId'
+import { Route as ClubsIndexRouteImport } from './routes/clubs.index'
+import { Route as ClubsClubIdRouteImport } from './routes/clubs.$clubId'
+import { Route as FanUsernameRouteImport } from './routes/fan.$username'
 import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
 import { Route as PlayerPlayerIdRouteImport } from './routes/player.$playerId'
+import { Route as StadiumStadiumIdRouteImport } from './routes/stadium.$stadiumId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -51,6 +58,11 @@ const AuthRoute = AuthRouteImport.update({
 const ClubRoute = ClubRouteImport.update({
   id: '/club',
   path: '/club',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsRoute = ClubsRouteImport.update({
+  id: '/clubs',
+  path: '/clubs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfirmEmailRoute = ConfirmEmailRouteImport.update({
@@ -98,6 +110,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StadiumsRoute = StadiumsRouteImport.update({
+  id: '/stadiums',
+  path: '/stadiums',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -111,6 +128,11 @@ const AdminClubsRoute = AdminClubsRouteImport.update({
 const AdminNewsRoute = AdminNewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPhotosRoute = AdminPhotosRouteImport.update({
+  id: '/photos',
+  path: '/photos',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminQualityRoute = AdminQualityRouteImport.update({
@@ -138,6 +160,21 @@ const ArticleNewsIdRoute = ArticleNewsIdRouteImport.update({
   path: '/article/$newsId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClubsIndexRoute = ClubsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ClubsRoute,
+} as any)
+const ClubsClubIdRoute = ClubsClubIdRouteImport.update({
+  id: '/$clubId',
+  path: '/$clubId',
+  getParentRoute: () => ClubsRoute,
+} as any)
+const FanUsernameRoute = FanUsernameRouteImport.update({
+  id: '/fan/$username',
+  path: '/fan/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
   id: '/match/$matchId',
   path: '/match/$matchId',
@@ -148,12 +185,18 @@ const PlayerPlayerIdRoute = PlayerPlayerIdRouteImport.update({
   path: '/player/$playerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StadiumStadiumIdRoute = StadiumStadiumIdRouteImport.update({
+  id: '/stadium/$stadiumId',
+  path: '/stadium/$stadiumId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/club': typeof ClubRoute
+  '/clubs': typeof ClubsRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/diary': typeof DiaryRoute
   '/matches': typeof MatchesRoute
@@ -163,16 +206,22 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/stadiums': typeof StadiumsRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/photos': typeof AdminPhotosRoute
   '/admin/quality': typeof AdminQualityRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
+  '/clubs/$clubId': typeof ClubsClubIdRoute
+  '/fan/$username': typeof FanUsernameRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/player/$playerId': typeof PlayerPlayerIdRoute
+  '/stadium/$stadiumId': typeof StadiumStadiumIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/clubs/': typeof ClubsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -187,16 +236,22 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/stadiums': typeof StadiumsRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/photos': typeof AdminPhotosRoute
   '/admin/quality': typeof AdminQualityRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
+  '/clubs/$clubId': typeof ClubsClubIdRoute
+  '/fan/$username': typeof FanUsernameRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/player/$playerId': typeof PlayerPlayerIdRoute
+  '/stadium/$stadiumId': typeof StadiumStadiumIdRoute
   '/admin': typeof AdminIndexRoute
+  '/clubs': typeof ClubsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -204,6 +259,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/club': typeof ClubRoute
+  '/clubs': typeof ClubsRouteWithChildren
   '/confirm-email': typeof ConfirmEmailRoute
   '/diary': typeof DiaryRoute
   '/matches': typeof MatchesRoute
@@ -213,16 +269,22 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/stadiums': typeof StadiumsRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/photos': typeof AdminPhotosRoute
   '/admin/quality': typeof AdminQualityRoute
   '/admin/songs': typeof AdminSongsRoute
   '/admin/staff': typeof AdminStaffRoute
   '/admin/users': typeof AdminUsersRoute
   '/article/$newsId': typeof ArticleNewsIdRoute
+  '/clubs/$clubId': typeof ClubsClubIdRoute
+  '/fan/$username': typeof FanUsernameRoute
   '/match/$matchId': typeof MatchMatchIdRoute
   '/player/$playerId': typeof PlayerPlayerIdRoute
+  '/stadium/$stadiumId': typeof StadiumStadiumIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/clubs/': typeof ClubsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -231,6 +293,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/club'
+    | '/clubs'
     | '/confirm-email'
     | '/diary'
     | '/matches'
@@ -240,16 +303,22 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/players'
     | '/reset-password'
+    | '/stadiums'
     | '/admin/clubs'
     | '/admin/news'
+    | '/admin/photos'
     | '/admin/quality'
     | '/admin/songs'
     | '/admin/staff'
     | '/admin/users'
     | '/article/$newsId'
+    | '/clubs/$clubId'
+    | '/fan/$username'
     | '/match/$matchId'
     | '/player/$playerId'
+    | '/stadium/$stadiumId'
     | '/admin/'
+    | '/clubs/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -264,22 +333,29 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/players'
     | '/reset-password'
+    | '/stadiums'
     | '/admin/clubs'
     | '/admin/news'
+    | '/admin/photos'
     | '/admin/quality'
     | '/admin/songs'
     | '/admin/staff'
     | '/admin/users'
     | '/article/$newsId'
+    | '/clubs/$clubId'
+    | '/fan/$username'
     | '/match/$matchId'
     | '/player/$playerId'
+    | '/stadium/$stadiumId'
     | '/admin'
+    | '/clubs'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/auth'
     | '/club'
+    | '/clubs'
     | '/confirm-email'
     | '/diary'
     | '/matches'
@@ -289,16 +365,22 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/players'
     | '/reset-password'
+    | '/stadiums'
     | '/admin/clubs'
     | '/admin/news'
+    | '/admin/photos'
     | '/admin/quality'
     | '/admin/songs'
     | '/admin/staff'
     | '/admin/users'
     | '/article/$newsId'
+    | '/clubs/$clubId'
+    | '/fan/$username'
     | '/match/$matchId'
     | '/player/$playerId'
+    | '/stadium/$stadiumId'
     | '/admin/'
+    | '/clubs/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -306,6 +388,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   ClubRoute: typeof ClubRoute
+  ClubsRoute: typeof ClubsRouteWithChildren
   ConfirmEmailRoute: typeof ConfirmEmailRoute
   DiaryRoute: typeof DiaryRoute
   MatchesRoute: typeof MatchesRoute
@@ -315,9 +398,12 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PlayersRoute: typeof PlayersRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  StadiumsRoute: typeof StadiumsRoute
   ArticleNewsIdRoute: typeof ArticleNewsIdRoute
+  FanUsernameRoute: typeof FanUsernameRoute
   MatchMatchIdRoute: typeof MatchMatchIdRoute
   PlayerPlayerIdRoute: typeof PlayerPlayerIdRoute
+  StadiumStadiumIdRoute: typeof StadiumStadiumIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -348,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: '/club'
       fullPath: '/club'
       preLoaderRoute: typeof ClubRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubs': {
+      id: '/clubs'
+      path: '/clubs'
+      fullPath: '/clubs'
+      preLoaderRoute: typeof ClubsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confirm-email': {
@@ -413,6 +506,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stadiums': {
+      id: '/stadiums'
+      path: '/stadiums'
+      fullPath: '/stadiums'
+      preLoaderRoute: typeof StadiumsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -432,6 +532,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/admin/news'
       preLoaderRoute: typeof AdminNewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/photos': {
+      id: '/admin/photos'
+      path: '/photos'
+      fullPath: '/admin/photos'
+      preLoaderRoute: typeof AdminPhotosRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/quality': {
@@ -469,6 +576,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ArticleNewsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clubs/': {
+      id: '/clubs/'
+      path: '/'
+      fullPath: '/clubs/'
+      preLoaderRoute: typeof ClubsIndexRouteImport
+      parentRoute: typeof ClubsRoute
+    }
+    '/clubs/$clubId': {
+      id: '/clubs/$clubId'
+      path: '/$clubId'
+      fullPath: '/clubs/$clubId'
+      preLoaderRoute: typeof ClubsClubIdRouteImport
+      parentRoute: typeof ClubsRoute
+    }
+    '/fan/$username': {
+      id: '/fan/$username'
+      path: '/fan/$username'
+      fullPath: '/fan/$username'
+      preLoaderRoute: typeof FanUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/match/$matchId': {
       id: '/match/$matchId'
       path: '/match/$matchId'
@@ -483,12 +611,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayerPlayerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stadium/$stadiumId': {
+      id: '/stadium/$stadiumId'
+      path: '/stadium/$stadiumId'
+      fullPath: '/stadium/$stadiumId'
+      preLoaderRoute: typeof StadiumStadiumIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminClubsRoute: typeof AdminClubsRoute
   AdminNewsRoute: typeof AdminNewsRoute
+  AdminPhotosRoute: typeof AdminPhotosRoute
   AdminQualityRoute: typeof AdminQualityRoute
   AdminSongsRoute: typeof AdminSongsRoute
   AdminStaffRoute: typeof AdminStaffRoute
@@ -499,6 +635,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminClubsRoute: AdminClubsRoute,
   AdminNewsRoute: AdminNewsRoute,
+  AdminPhotosRoute: AdminPhotosRoute,
   AdminQualityRoute: AdminQualityRoute,
   AdminSongsRoute: AdminSongsRoute,
   AdminStaffRoute: AdminStaffRoute,
@@ -508,11 +645,24 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface ClubsRouteChildren {
+  ClubsClubIdRoute: typeof ClubsClubIdRoute
+  ClubsIndexRoute: typeof ClubsIndexRoute
+}
+
+const ClubsRouteChildren: ClubsRouteChildren = {
+  ClubsClubIdRoute: ClubsClubIdRoute,
+  ClubsIndexRoute: ClubsIndexRoute,
+}
+
+const ClubsRouteWithChildren = ClubsRoute._addFileChildren(ClubsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   ClubRoute: ClubRoute,
+  ClubsRoute: ClubsRouteWithChildren,
   ConfirmEmailRoute: ConfirmEmailRoute,
   DiaryRoute: DiaryRoute,
   MatchesRoute: MatchesRoute,
@@ -522,9 +672,12 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PlayersRoute: PlayersRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  StadiumsRoute: StadiumsRoute,
   ArticleNewsIdRoute: ArticleNewsIdRoute,
+  FanUsernameRoute: FanUsernameRoute,
   MatchMatchIdRoute: MatchMatchIdRoute,
   PlayerPlayerIdRoute: PlayerPlayerIdRoute,
+  StadiumStadiumIdRoute: StadiumStadiumIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

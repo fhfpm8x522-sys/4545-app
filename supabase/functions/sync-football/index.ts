@@ -1,3 +1,4 @@
+import {providerCacheUsable,matchProviderTtl} from '../football-cache-policy.mjs';
 type J = Record<string, any>;
 
 function s(v: any): string | null {
@@ -325,6 +326,10 @@ function competitionHe(v: any) {
 // ============================================================
 
 async function goal(path: string) {
+  const cached=await db.from('football_cache').select('payload,expires_at,updated_at').eq('cache_key',path).maybeSingle();
+  if(cached.error)throw {message:'GOAL cache unavailable',status:503};
+  if(providerCacheUsable(cached.data,path.includes('/fixtures')?900:path.includes('statistics')?21600:86400)){if(cached.data.payload?._4545_denied)throw {message:'GOAL endpoint unavailable',status:cached.data.payload._4545_denied};return {data:cached.data.payload};}
+  const budget=await db.rpc('claim_goal_path',{p_path:path});if(budget.error||budget.data!==true)throw {message:'GOAL request budget paused',status:429};
   const r = await fetch(`${GOAL_BASE}${path}`, {
     signal: AbortSignal.timeout(20000),
     headers: {
@@ -335,7 +340,9 @@ async function goal(path: string) {
 
   const text = await r.text();
 
+  if(r.status===429)await db.rpc('pause_goal_requests',{p_seconds:86400});
   if (!r.ok) {
+    if([401,403,404].includes(r.status))await db.from('football_cache').upsert({cache_key:path,payload:{_4545_denied:r.status},expires_at:new Date(Date.now()+86400000).toISOString(),updated_at:new Date().toISOString()});
     throw {
       message: `GOAL request failed: ${path}`,
       status: r.status,
@@ -343,7 +350,9 @@ async function goal(path: string) {
   }
 
   try {
-    return JSON.parse(text);
+    const parsed=JSON.parse(text);const ttl=path.includes('/fixtures')?900:path.includes('statistics')?21600:86400;
+    const saved=await db.from('football_cache').upsert({cache_key:path,payload:parsed.data??parsed,expires_at:new Date(Date.now()+ttl*1000).toISOString(),updated_at:new Date().toISOString()});if(saved.error)throw Error('GOAL cache save failed');
+    return parsed;
   } catch {
     throw {
       message: `GOAL returned invalid JSON: ${path}`,

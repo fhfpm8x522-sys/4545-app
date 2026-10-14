@@ -1,3 +1,4 @@
+import {ProviderStatus} from '@/components/provider-status';
 import { NotificationsInbox } from "@/components/notifications-inbox";
 import { QueryFeedback } from "@/components/query-feedback";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -77,7 +78,7 @@ export function AppShell({
         </header>
       )}
 
-      <main className="mx-auto max-w-2xl px-4 py-4">{children}</main>
+      <main className="mx-auto max-w-2xl px-4 py-4"><Link to="/clubs" className="mb-4 ml-2 inline-block rounded-full border border-club/30 px-3 py-1 text-xs text-club">כל הקבוצות</Link><Link to="/stadiums" className="mb-4 inline-block rounded-full border border-club/30 px-3 py-1 text-xs text-club">🏟️ אצטדיונים וגלריות אוהדים</Link><ProviderStatus/>{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-stretch justify-between px-2">

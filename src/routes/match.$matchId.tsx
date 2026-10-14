@@ -1,3 +1,4 @@
+import {MatchStadiumLink} from '@/components/match-stadium-link';
 import {finiteNumber} from '@/lib/football-model.mjs';
 import {MatchMotm} from '@/components/match-motm';
 import {publicMatchSnapshot,savePublicSnapshot,getPublicStorage} from '@/lib/public-offline.mjs';
@@ -29,7 +30,6 @@ function MatchCenter() {
   const { matchId } = Route.useParams(); const { user } = useSession(); const qc = useQueryClient();
   const {data:profile}=useProfile(user?.id);
   const [attendanceBusy,setAttendanceBusy]=useState(false);
-  const liveDetails=useFootballData("match",matchId,true);
   const [chatText, setChatText] = useState("");
   const { data, isLoading: dataLoading, error: dataError, refetch: retryData } = useQuery({ queryKey: ["match", matchId, user?.id], refetchInterval: 15000, queryFn: async () => {
     const [m, events, pred, att, chat] = await Promise.all([
@@ -43,6 +43,8 @@ function MatchCenter() {
     const profiles = await publicProfiles((chat.data ?? []).map((x) => x.author_id));
     return { match: m.data as Match | null, events: events.data ?? [], prediction: pred.data, attended: !!att.data, chat: [...(chat.data ?? [])].reverse(), profiles };
   }});
+  const refreshProvider=data?.match?.status==='live'||(data?.match?.status==='scheduled'&&Math.abs(Date.parse(data.match.kickoff)-Date.now())<90*60000);
+  const liveDetails=useFootballData("match",matchId,!!refreshProvider);
 
   useEffect(()=>{if(data?.match)savePublicSnapshot(publicMatchSnapshot(data.match,data.events),getPublicStorage());},[data]);
   if (dataLoading || dataError) return <AppShell title="Match Center"><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
@@ -66,7 +68,7 @@ function MatchCenter() {
 
   return <AppShell title="Match Center"><div className="space-y-4">
     <NextMatchCard match={match} />
-    <MatchHistory match={match} />
+    <MatchStadiumLink name={match.stadium}/><MatchHistory match={match} />
     <PersonalMatchTools match={match} userId={user?.id} profile={profile} />
     <MatchWinnerPoll matchId={matchId} userId={user?.id} homeName={match.home_name||"בית"} awayName={match.away_name||"חוץ"} open={canPredict} />
     <FanGuesses match={match} userId={user?.id} favoriteClubId={profile?.favorite_club_id} />

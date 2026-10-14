@@ -1,0 +1,15 @@
+begin;
+create temporary table var_test_context as select id uid,favorite_club_id club_id,gen_random_uuid() match_id from profiles where username='neorai18';
+update profiles set notification_prefs='{"var_alerts":true,"in_app_enabled":true,"quiet_enabled":false}'::jsonb where id=(select uid from var_test_context);
+insert into matches select (jsonb_populate_record(null::matches,to_jsonb(m)||jsonb_build_object('id',c.match_id,'kickoff',now()-interval '10 minutes','status','live','home_club_id',c.club_id,'goal_fixture_id',null,'goal_fixture_api_id',null,'provider_id',null))).* from matches m cross join var_test_context c limit 1;
+insert into match_events(match_id,event_type,raw_type,minute,detail,goal_event_id) select match_id,'var','VAR',20,'Checking goal','rollback-var-'||match_id from var_test_context;
+do $$declare mid uuid;uid uuid;n int;begin select match_id,var_test_context.uid into mid,uid from var_test_context;
+ select count(*) into n from notification_inbox where user_id=uid and url='/match/'||mid and kind='var_alerts';if n<>1 then raise exception 'VAR notification missing';end if;
+ update match_events set minute=21 where match_id=mid;if (select count(*) from notification_inbox where user_id=uid and url='/match/'||mid and kind='var_alerts')<>1 then raise exception 'Clock correction repeated notification';end if;
+ update match_events set detail='Goal cancelled' where match_id=mid;if (select count(*) from notification_inbox where user_id=uid and url='/match/'||mid and kind='var_alerts')<>2 then raise exception 'Decision correction missing';end if;
+ update match_events set detail='Goal cancelled' where match_id=mid;if (select count(*) from notification_inbox where user_id=uid and url='/match/'||mid and kind='var_alerts')<>2 then raise exception 'Same decision repeated';end if;
+ update profiles set notification_prefs=notification_prefs||'{"var_alerts":false}' where id=uid;
+ update match_events set detail='Review complete' where match_id=mid;if (select count(*) from notification_inbox where user_id=uid and url='/match/'||mid and kind='var_alerts')<>2 then raise exception 'Disabled VAR preference ignored';end if;
+end$$;
+rollback;
+select jsonb_build_object('passed',true,'rolled_back',true,'sent_real_push',false,'checks',jsonb_build_array('VAR queues inbox','clock correction does not resend','decision change queues update','same decision deduplicates','disabled preference respected')) as result;

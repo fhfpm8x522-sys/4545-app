@@ -43,8 +43,9 @@ export function lineupsSides(raw) {
     const v=root[side]??root[`${side}Team`]??{};
     const starters=v.startingLineups??v.starting_lineups??v.starting??root[`${side}StartingLineups`]??[];
     const all=root.startingLineups;
-    const players=Array.isArray(starters)&&starters.length?starters:Array.isArray(all)?all.filter(p=>String(p.teamSide??p.side??'').toLowerCase()===side):[];
-    return {side,formation:v.formation??root[`${side}Formation`]??null,players,substitutes:v.substitutes??v.bench??[]};
+    const players=Array.isArray(starters)&&starters.length?starters:Array.isArray(all)?all.filter(p=>String(p.teamSide??p.side??p.team??'').toLowerCase()===side):[];
+    const substitutes=v.substitutes??v.bench??(Array.isArray(root.substitutes)?root.substitutes.filter(p=>String(p.teamSide??p.side??p.team??'').toLowerCase()===side):[]);
+    return {side,formation:v.formation??root[`${side}Formation`]??null,players,substitutes};
   });
 }
 export function matchStats(raw) {

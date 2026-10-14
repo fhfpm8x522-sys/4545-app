@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { AppShell } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { QueryFeedback } from '@/components/query-feedback';
 import { PrivateMatchAlbum } from '@/components/private-match-album';
 import { shareMatchCard } from '@/components/personal-match-tools';
@@ -43,14 +42,12 @@ function Diary() {
     </>}
   </div></AppShell>;
 }
-const equipment = ['כרטיס כניסה', 'טלפון טעון', 'תעודה', 'צעיף', 'סוללה ניידת'];
 function PrivateMatchEditor({ userId, match, entry, attended, supportedClubId }: { userId: string; match: Match; entry?: Entry | undefined; attended: boolean; supportedClubId: string | null }) {
   const qc = useQueryClient(); const [note, setNote] = useState(entry?.private_note ?? ''), [trip, setTrip] = useState(entry?.away_trip_note ?? '');
-  const [checked, setChecked] = useState<string[]>(Array.isArray(entry?.checklist) ? entry.checklist.filter(i => typeof i === 'string') : []), [extra, setExtra] = useState(''), [items, setItems] = useState<string[]>(Array.from(new Set([...equipment, ...(Array.isArray(entry?.checklist_items) ? entry.checklist_items.filter(i => typeof i === 'string') : []), ...(Array.isArray(entry?.checklist) ? entry.checklist.filter(i => typeof i === 'string') : [])])));
   const [busy, setBusy] = useState(false), [side, setSide] = useState(supportedClubId ?? '');
   async function save() {
     if (busy) return; setBusy(true);
-    try { const r = await supabase.rpc('save_fan_diary', { p_match_id: match.id, p_patch: { private_note: note, away_trip_note: trip, checklist: checked, checklist_items: items } }); if (r.error) throw r.error;
+    try { const r = await supabase.rpc('save_fan_diary', { p_match_id: match.id, p_patch: { private_note: note, away_trip_note: trip } }); if (r.error) throw r.error;
       if (attended) { const supported = await supabase.rpc('set_attendance_side', { p_match_id: match.id, p_club_id: side || null }); if (supported.error) throw supported.error; }
       await qc.invalidateQueries({ queryKey: ['fan-diary', userId] }); toast.success('היומן הפרטי נשמר');
     } catch { toast.error('לא הצלחנו לשמור את היומן'); } finally { setBusy(false); }
@@ -59,7 +56,6 @@ function PrivateMatchEditor({ userId, match, entry, attended, supportedClubId }:
     {attended && <label className="block text-xs">הקבוצה שעודדתי במשחק<select value={side} onChange={e => setSide(e.target.value)} className="mt-2 w-full rounded-lg border border-border bg-background p-2"><option value="">צופה ניטרלי / לא מוגדר</option>{match.home_club_id && <option value={match.home_club_id}>{match.home_name}</option>}{match.away_club_id && <option value={match.away_club_id}>{match.away_name}</option>}</select></label>}
     <label className="block text-sm">הזיכרון הפרטי שלי<textarea maxLength={5000} value={note} onChange={e => setNote(e.target.value)} className="mt-2 min-h-28 w-full rounded-xl border border-border bg-background p-3" placeholder="מה ארצה לזכור מהמשחק הזה?" /></label>
     <label className="block text-sm">יומן נסיעת חוץ<textarea maxLength={2000} value={trip} onChange={e => setTrip(e.target.value)} className="mt-2 min-h-20 w-full rounded-xl border border-border bg-background p-3" placeholder="תכנון וזיכרונות מהנסיעה — רק בשבילי" /></label>
-    <div><h3 className="mb-2 text-sm font-bold">לפני שיוצאים למשחק</h3><div className="grid grid-cols-2 gap-2">{items.map(item => <label key={item} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={checked.includes(item)} onChange={e => setChecked(e.target.checked ? [...checked, item] : checked.filter(i => i !== item))} className="size-4 accent-[var(--club)]" />{item}</label>)}</div><div className="mt-3 flex gap-2"><Input aria-label="פריט נוסף לרשימת הציוד" value={extra} maxLength={80} onChange={e => setExtra(e.target.value)} placeholder="פריט נוסף…" /><Button variant="ghost" disabled={!extra.trim() || items.length >= 64} onClick={() => { setItems(Array.from(new Set([...items, extra.trim()]))); setExtra(''); }}>הוסף</Button></div></div>
     <Button variant="club" disabled={busy} onClick={save}>{busy ? 'שומר…' : 'שמירת היומן הפרטי'}</Button><p className="text-[10px] text-muted-foreground">כרטיס השיתוף כולל פרטי משחק ציבוריים בלבד. ההערות, הנסיעה והתמונות נשארות ביומן.</p>
   </section>;
 }

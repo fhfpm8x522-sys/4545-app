@@ -1,0 +1,13 @@
+begin;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$begin if public.claim_goal_request() then raise exception 'Paused provider accepted a request';end if;end$$;
+update public.football_provider_limits set paused_until=null where provider='goal';
+do $$declare i int;begin for i in 1..15 loop if not public.claim_goal_request() then raise exception 'Request within budget denied';end if;end loop;if public.claim_goal_request() then raise exception 'Minute budget exceeded';end if;end$$;
+insert into public.football_provider_requests(provider,sent_at) select 'goal',now()-interval '10 minutes' from generate_series(1,735);
+do $$begin if public.claim_goal_request() then raise exception 'Rolling budget exceeded';end if;perform public.pause_goal_requests(86400);if public.claim_goal_request() then raise exception 'Pause ineffective';end if;end$$;
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111"}',true);
+set local role authenticated;
+do $$begin begin perform public.claim_goal_request();raise exception 'Client can consume budget';exception when insufficient_privilege then null;end;end$$;
+reset role;
+rollback;
+select jsonb_build_object('passed',true,'rolled_back',true,'upstream_requests',0,'checks',jsonb_build_array('paused denies calls','15 per minute','750 per rolling day','rate response pauses','client cannot reserve')) as result;

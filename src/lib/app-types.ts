@@ -17,6 +17,8 @@ export type Club = {
   accent_foreground?: string | null;
   accent_secondary?: string | null;
   description?: string | null;
+  heritage_summary?: string | null;
+  history_source_url?: string | null;
   sort_order?: number | null;
   goal_team_id?: string | null;
   goal_api_id?: string | null;
@@ -68,6 +70,11 @@ export type Match = {
 };
 
 export type Player = {
+  name_he_source?: string|null;
+  image_source_url?:string|null;
+  image_credit?:string|null;
+  image_license_url?:string|null;
+  name_he_verified?: boolean;
   id: string;
   club_id: string | null;
   name: string;

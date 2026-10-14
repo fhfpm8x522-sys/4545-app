@@ -1,0 +1,6 @@
+export function goalRows(raw){const rows=Array.isArray(raw)?raw:Array.isArray(raw?.goals)?raw.goals:Array.isArray(raw?.goalscorer)?raw.goalscorer:[];return rows.filter(e=>e&&typeof e==='object'&&((/^(goal|own[_ -]?goal|penalty[_ -]?goal)$/i.test(String(e.eventType??e.type??'')))||(!e.eventType&&!e.type&&(e.homeScorer||e.awayScorer||e.goalType))));}
+export function cancelledGoal(e){return e.cancelled===true||e.disallowed===true||/cancel|disallow|annul|overturn|miss|saved|בוטל|נפסל|החמצ/i.test([e.goalType,e.raw_type,e.detail,e.decision,e.type,e.status].filter(Boolean).join(' '));}
+export function goalClock(e){const m=String(e.minute??e.time??'').match(/^(\d{1,3})(?:\+(\d{1,2}))?$/);return m?{minute:Number(m[1])+Number(m[2]??0),minute_base:m[2]?Number(m[1]):null,added_minute:m[2]?Number(m[2]):null}:null;}
+export function cancelledGoalIds(rows,e){const provider=e.eventId??e.id,clock=goalClock(e),side=String(e.teamSide??e.side??e.team??(e.homeScorer?'home':e.awayScorer?'away':'')).toLowerCase(),scorer=e.homeScorerId??e.awayScorerId??e.playerId;
+ return rows.filter(r=>(provider!=null&&(r.goal_event_id===String(provider)||r.goal_event_id===JSON.stringify([e.fixtureId,'goal',provider])))||(clock&&['home','away'].includes(side)&&r.minute===clock.minute&&r.team_side===side&&scorer!=null&&r.player_id===String(scorer))).map(r=>r.id);
+}

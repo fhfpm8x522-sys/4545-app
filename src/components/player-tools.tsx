@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 export function usePlayerData(id: string | undefined, season: string) {
   return useQuery({ queryKey: ['player-details', id, season], enabled: !!id, staleTime: 900000, retry: 1, queryFn: async () => {
-    const r = await supabase.functions.invoke('football-data', { body: { mode: 'player', id, season } }); if (r.error || !r.data?.player) throw Error('נתוני השחקן אינם זמינים כרגע'); return r.data as { player: Player; stats: Record<string, number | null>; season: string; source: string; updatedAt: string | null; error: string | null };
+    const r = await supabase.functions.invoke('football-data', { body: { mode: 'player', id, season } }); if (r.error || !r.data?.player) throw Error('נתוני השחקן אינם זמינים כרגע'); return r.data as { player: Player; stats: Record<string, number | null>; season: string; source: string; updatedAt: string | null; error: string | null; stale?:boolean };
   } });
 }
 export function SavedItemButton({ userId, kind, id, label }: { userId?: string | undefined; kind: 'player' | 'article' | 'match'; id: string; label: string }) {

@@ -31,12 +31,12 @@ export function ExportPersonalData({ user }: { user: { id: string; email?: strin
   async function exportData() {
     if (busy) return; setBusy(true);
     try {
-      const names = ['fan_motm_votes', 'predictions', 'match_attendance', 'fan_guesses', 'fan_match_alerts', 'fan_match_diary', 'fan_saved_items', 'fan_album_photos', 'notification_inbox'];
-      const order:Record<string,string[]>={fan_motm_votes:['match_id'],predictions:['match_id'],match_attendance:['match_id'],fan_guesses:['match_id','kind'],fan_match_alerts:['match_id'],fan_match_diary:['match_id'],fan_saved_items:['kind','entity_id'],fan_album_photos:['id'],notification_inbox:['id']};
+      const names = ['fan_public_photos', 'community_posts', 'chat_messages', 'poll_votes', 'match_winner_votes', 'club_change_history', 'fan_motm_votes', 'predictions', 'match_attendance', 'fan_guesses', 'fan_match_alerts', 'fan_match_diary', 'fan_saved_items', 'fan_album_photos', 'notification_inbox'];
+      const order:Record<string,string[]>={fan_public_photos:['id'],community_posts:['id'],chat_messages:['id'],poll_votes:['poll_id'],match_winner_votes:['match_id'],club_change_history:['id'],fan_motm_votes:['match_id'],predictions:['match_id'],match_attendance:['match_id'],fan_guesses:['match_id','kind'],fan_match_alerts:['match_id'],fan_match_diary:['match_id'],fan_saved_items:['kind','entity_id'],fan_album_photos:['id'],notification_inbox:['id']};
       const records: Record<string, any[]> = {};
       for (const table of names) {
         const rows: any[] = [];
-        for (let from = 0; ; from += 500) { let query=supabase.from(table).select('*').eq('user_id',user.id);for(const column of order[table]??[])query=query.order(column);const r = await query.range(from, from + 499); if (r.error) throw r.error; rows.push(...r.data ?? []); if ((r.data?.length ?? 0) < 500) break; }
+        for (let from = 0; ; from += 500) { let query=supabase.from(table).select('*').eq(['community_posts','chat_messages'].includes(table)?'author_id':'user_id',user.id);for(const column of order[table]??[])query=query.order(column);const r = await query.range(from, from + 499); if (r.error) throw r.error; rows.push(...r.data ?? []); if ((r.data?.length ?? 0) < 500) break; }
         records[table] = rows;
       }
       const latest=await supabase.from('profiles').select('*').eq('id',user.id).single();if(latest.error)throw latest.error;

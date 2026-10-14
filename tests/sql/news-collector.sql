@@ -1,0 +1,16 @@
+begin;
+select set_config('request.jwt.claims','{"role":"service_role"}',true);
+do $$declare c uuid;draft jsonb;first boolean;begin select id into c from clubs where active limit 1;draft:=jsonb_build_object('title','rollback-only-imported-news','source_url','https://example.org/rollback-only','source_name','example.org','status','published','official',true);
+ first:=ingest_news_candidate(c,draft,repeat('a',64),repeat('b',64));if not first then raise exception 'First article skipped';end if;
+ if ingest_news_candidate(c,draft,repeat('a',64),repeat('b',64)) then raise exception 'Same link repeated';end if;
+ if ingest_news_candidate(c,draft||'{"source_url":"https://example.org/other-link"}',repeat('c',64),repeat('b',64)) then raise exception 'Same title repeated';end if;
+ if exists(select 1 from news_items where source_url='https://example.org/rollback-only' and (status<>'pending' or official or source_kind<>'report' or body is not null or image_url is not null)) then raise exception 'Collector auto-published or copied content';end if;
+ update news_items set status='rejected' where source_url='https://example.org/rollback-only';
+ if ingest_news_candidate(c,draft,repeat('a',64),repeat('b',64)) then raise exception 'Rejected article reimported';end if;
+end$$;
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"11111111-1111-4111-8111-111111111111"}',true);
+set local role authenticated;
+do $$begin if authorize_news_collector() then raise exception 'Client collector access';end if;begin perform claim_news_collection();raise exception 'Client claimed collector';exception when insufficient_privilege then null;end;end$$;
+reset role;
+rollback;
+select jsonb_build_object('passed',true,'rolled_back',true,'published_real_articles',false,'checks',jsonb_build_array('first import creates draft','same link dedup','alternate link same title dedup','no auto-publish or copied body/images','rejection remains deduplicated','user cannot authorize','user cannot claim')) as result;
