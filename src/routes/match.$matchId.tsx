@@ -73,7 +73,7 @@ function MatchCenter() {
     <Button disabled={attendanceBusy||!user} variant={attended ? "club" : "clubSoft"} size="xl" onClick={toggleAttend}>🏟️ {attendanceBusy ? "שומר…" : attended ? "הייתי שם ✓ — לחץ לביטול" : "הייתי שם"}</Button>
 
     {liveDetails.isFetching && <p className="text-xs text-muted-foreground">מעדכן נתוני משחק…</p>}
-    <MatchMotm match={match} userId={user?.id} />
+    <MatchMotm key={match.id} match={match} userId={user?.id} />
     <MatchLivePanels data={liveDetails.data} homeName={match.home_name||"בית"} awayName={match.away_name||"חוץ"} />
     {(state === "live" || state === "finished") && <MatchTimeline events={events} match={match} />}
 

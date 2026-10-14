@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 export function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
-export async function shareMatchCard(match: Match) {
+export async function shareMatchCard(match: Match, downloadOnly = false) {
   const card = publicMatchCard(match), canvas = document.createElement('canvas'); canvas.width = 1000; canvas.height = 620;
   const ctx = canvas.getContext('2d'); if (!ctx) throw Error('Canvas unavailable');
   const bg = ctx.createLinearGradient(0, 0, 1000, 620); bg.addColorStop(0, '#091426'); bg.addColorStop(1, '#350915'); ctx.fillStyle = bg; ctx.fillRect(0, 0, 1000, 620);
@@ -23,7 +23,7 @@ export async function shareMatchCard(match: Match) {
   ctx.fillStyle = '#ff263e'; ctx.font = 'bold 25px Arial'; ctx.fillText('הקבוצה. הקהל. הרגעים.', 500, 565);
   const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(Error('Image unavailable')), 'image/png'));
   const file = new File([blob], `4545-match-${match.id}.png`, { type: 'image/png' });
-  if (navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'יום משחק — 45:45' }); else downloadBlob(blob, file.name);
+  if (!downloadOnly && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: 'יום משחק — 45:45' }); else downloadBlob(blob, file.name);
 }
 export function PersonalMatchTools({ match, profile, userId }: { match: Match; profile?: Profile | null | undefined; userId?: string | undefined }) {
   const qc = useQueryClient(); const [busy, setBusy] = useState(false);
@@ -49,6 +49,7 @@ export function PersonalMatchTools({ match, profile, userId }: { match: Match; p
   return <section className="panel space-y-3 p-4"><div className="flex flex-wrap gap-2">
     <Button variant="clubSoft" onClick={() => { try { downloadBlob(new Blob([matchCalendar(match)], { type: 'text/calendar;charset=utf-8' }), `4545-match-${match.id}.ics`); } catch { toast.error('פרטי המשחק אינם זמינים ליומן'); } }}>📅 הוסף ליומן הטלפון</Button>
     <Button variant="clubSoft" onClick={() => shareMatchCard(match).catch(error => { if (error?.name !== 'AbortError') toast.error('לא הצלחנו ליצור תמונה לשיתוף'); })}>🎨 סיכום משחק לשיתוף</Button>
+    <Button variant="ghost" onClick={()=>shareMatchCard(match,true).catch(()=>toast.error('לא הצלחנו לשמור את התמונה'))}>💾 שמור תמונת משחק</Button>
     {userId && <Button variant={data?.diary?.watched_at ? 'club' : 'ghost'} disabled={busy || !!error || !['live', 'finished'].includes(match.status)} onClick={watched}>{data?.diary?.watched_at ? 'נצפה ✓ — ביטול הסימון' : 'סמן שצפיתי במשחק'}</Button>}
   </div>{userId && !error && <div className="grid gap-2 text-sm sm:grid-cols-2">
     <label className="flex items-center gap-2"><input type="checkbox" disabled={busy} checked={enabled} onChange={e => saveAlerts({ enabled: e.target.checked })} className="size-4 accent-[var(--club)]" />התראות למשחק הזה</label>
