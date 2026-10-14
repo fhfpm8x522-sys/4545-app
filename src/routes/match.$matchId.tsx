@@ -1,5 +1,6 @@
 import {MatchWinnerPoll} from "@/components/match-winner-poll";
 import {FanGuesses} from "@/components/fan-guesses";
+import {PersonalMatchTools} from "@/components/personal-match-tools";
 import {MatchLivePanels} from "@/components/match-live-panels";
 import {useFootballData} from "@/lib/football-query";
 import { assertResults } from "@/lib/runtime-utils.mjs";
@@ -46,7 +47,8 @@ function MatchCenter() {
   async function toggleAttend() {
     if (!user || attendanceBusy) return;
     setAttendanceBusy(true);
-    const result = attended ? await supabase.from("match_attendance").delete().eq("match_id", matchId).eq("user_id", user.id) : await supabase.from("match_attendance").insert({ match_id: matchId, user_id: user.id });
+    const supported = profile?.favorite_club_id && [match.home_club_id,match.away_club_id].includes(profile.favorite_club_id) ? profile.favorite_club_id : null;
+    const result = attended ? await supabase.from("match_attendance").delete().eq("match_id", matchId).eq("user_id", user.id) : await supabase.from("match_attendance").insert({ match_id: matchId, user_id: user.id, supported_club_id:supported });
     if (result.error) toast.error(result.error.message); else { toast.success(attended ? "הסימון בוטל" : "סימנת שהיית במשחק"); qc.invalidateQueries({ queryKey: ["match", matchId] }); }
     setAttendanceBusy(false);
   }
@@ -58,6 +60,7 @@ function MatchCenter() {
 
   return <AppShell title="Match Center"><div className="space-y-4">
     <NextMatchCard match={match} />
+    <PersonalMatchTools match={match} userId={user?.id} profile={profile} />
     <MatchWinnerPoll matchId={matchId} userId={user?.id} homeName={match.home_name||"בית"} awayName={match.away_name||"חוץ"} open={canPredict} />
     <FanGuesses match={match} userId={user?.id} favoriteClubId={profile?.favorite_club_id} />
     {prediction && <p className="text-xs text-muted-foreground">ניחוש התוצאה השמור שלך: {match.home_name} {prediction.home_score} · {match.away_name} {prediction.away_score}</p>}

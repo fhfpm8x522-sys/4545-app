@@ -7,7 +7,7 @@ function validEndpoint(value:string){try{const u=new URL(value);return u.protoco
 async function goal(path:string){if(!goalKey)return null;const r=await fetch('https://api.goal-api.com/v1'+path,{headers:{Authorization:'Bearer '+goalKey},signal:AbortSignal.timeout(15000)});if(!r.ok)return null;return (await r.json()).data;}
 function num(v:any){if(v===null||v===undefined||v==='')return null;const n=Number(v);return Number.isFinite(n)?n:null;}
 async function refreshLive(){
- const now=Date.now();const rows=await db.from('matches').select('*').not('goal_fixture_id','is',null).in('status',['scheduled','live']).gte('kickoff',new Date(now-4*3600000).toISOString()).lte('kickoff',new Date(now+90*60000).toISOString()).limit(3);
+ const now=Date.now();const rows=await db.from('matches').select('*').not('goal_fixture_id','is',null).in('status',['scheduled','live']).gte('kickoff',new Date(now-4*3600000).toISOString()).lte('kickoff',new Date(now+90*60000).toISOString()).order('goal_updated_at',{ascending:true,nullsFirst:true}).limit(3);
  if(rows.error)throw rows.error;
  for(const m of rows.data??[]){
  const f=await goal(`/fixtures/${encodeURIComponent(m.goal_fixture_id)}`);if(!f)continue;
@@ -50,6 +50,7 @@ Deno.serve(async request=>{
  const publicKey=Deno.env.get('VAPID_PUBLIC_KEY'),privateKey=Deno.env.get('VAPID_PRIVATE_KEY');if(!publicKey||!privateKey)return Response.json({error:'Push keys are not configured'},{status:503});
  webpush.setVapidDetails(base,publicKey,privateKey);
  await refreshLive();
+ const reminders=await db.rpc('queue_match_reminders');if(reminders.error)throw Error('Reminder queue unavailable');
  const claimed=await db.rpc('claim_push_notifications',{p_limit:50});if(claimed.error)throw Error('Push queue unavailable');
  let sent=0,failed=0;
  for(const item of claimed.data??[]){const subs=await db.from('push_subscriptions').select('endpoint,subscription').eq('user_id',item.user_id);let delivered=false;
