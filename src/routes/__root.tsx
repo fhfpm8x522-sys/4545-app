@@ -39,26 +39,40 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+  const staleVersion = /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk.*failed/i.test(String(error));
+  function loadCurrentVersion() {
+    // Keep the private verification fragment in this tab's storage; never put it in a server request.
+    sessionStorage.setItem('4545-pages-route', location.pathname + location.search + location.hash);
+    location.replace(`${import.meta.env.BASE_URL}?app_reload=${Date.now()}`);
+  }
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+  useEffect(() => {
+    if (!staleVersion || import.meta.env.VITE_STATIC_PAGES !== 'true') return;
+    const previous = Number(sessionStorage.getItem('4545-chunk-reload-at') ?? 0);
+    if (Date.now() - previous < 60000) return;
+    sessionStorage.setItem('4545-chunk-reload-at', String(Date.now()));
+    loadCurrentVersion();
+  }, [staleVersion]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight">הדף לא נטען</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          משהו השתבש. אפשר לנסות שוב או לחזור לבית.
+          {staleVersion ? 'האתר התעדכן. טוענים את הגרסה העדכנית כדי להמשיך.' : 'משהו השתבש. אפשר לנסות שוב או לחזור לבית.'}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
+              if (staleVersion && import.meta.env.VITE_STATIC_PAGES === 'true') { loadCurrentVersion(); return; }
               router.invalidate();
               reset();
             }}
             className="inline-flex items-center justify-center rounded-full bg-club px-5 py-2.5 text-sm font-semibold text-club-foreground"
           >
-            נסה שוב
+            {staleVersion ? 'טעינת הגרסה העדכנית' : 'נסה שוב'}
           </button>
           <a
             href={import.meta.env.BASE_URL}
