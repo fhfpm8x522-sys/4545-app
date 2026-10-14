@@ -16,3 +16,5 @@ self.addEventListener('notificationclick',event=>{
  event.notification.close();let url=new URL(event.notification.data?.url||self.registration.scope,self.registration.scope);if(url.origin!==self.location.origin)url=new URL(self.registration.scope);
  event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(async windows=>{const existing=windows.find(w=>w.url.startsWith(self.registration.scope));if(existing){await existing.navigate(url.href);return existing.focus();}return clients.openWindow(url.href);}));
 });
+
+self.addEventListener('message',event=>{if(event.data?.type!=='4545-offline-status')return;event.waitUntil((async()=>{const shell=await caches.match(ROOT);event.source?.postMessage({type:'4545-offline-ready',ready:!!shell,version:PUBLIC_CACHE});})());});

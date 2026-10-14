@@ -7,5 +7,5 @@ fs.writeFileSync('dist-pages/404.html', `<!doctype html><html lang="he" dir="rtl
 
 fs.writeFileSync('dist-pages/offline-assets.json',JSON.stringify(fs.readdirSync('dist-pages/assets').filter(name=>/\.(js|css)$/.test(name)).map(name=>'assets/'+name)));
 
-const offlineVersion=createHash('sha256').update(fs.readFileSync('dist-pages/offline-assets.json')).digest('hex').slice(0,12);
+const offlineVersion=createHash('sha256').update(fs.readFileSync('dist-pages/offline-assets.json')).update(fs.readFileSync('dist-pages/service-worker.js')).digest('hex').slice(0,12);
 fs.writeFileSync('dist-pages/service-worker.js',fs.readFileSync('dist-pages/service-worker.js','utf8').replace('4545-public-shell-v1','4545-public-shell-'+offlineVersion));
