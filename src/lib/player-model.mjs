@@ -1,2 +1,3 @@
 export function per90(value, minutes) { return typeof value === 'number' && Number.isFinite(value) && value >= 0 && typeof minutes === 'number' && Number.isFinite(minutes) && minutes > 0 ? value * 90 / minutes : null; }
 export function birthdayLabel(value) { if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null; const date = new Date(value + 'T00:00:00Z'); if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return null; return date.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
+export function isRosterPlayer(player) { return !/coach|manager|trainer|staff/i.test([player.position,player.goal_position].filter(Boolean).join(' ')); }

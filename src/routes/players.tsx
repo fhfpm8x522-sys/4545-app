@@ -6,7 +6,7 @@ import { AppShell } from '@/components/app-shell';
 import { PlayerFace, PlayerRosterLink, usePlayerData } from '@/components/player-tools';
 import { displayPlayerName, type Club, type Player } from '@/lib/app-types';
 import { useProfile, useSession } from '@/lib/session';
-import { per90 } from '@/lib/player-model.mjs';
+import { per90, isRosterPlayer } from '@/lib/player-model.mjs';
 import { Input } from '@/components/ui/input';
 export const Route = createFileRoute('/players')({ head: () => ({ meta: [{ title: 'שחקנים והשוואה — 45:45' }] }), component: Players });
 function Players() {
@@ -14,7 +14,7 @@ function Players() {
   const [leftClub, setLeftClub] = useState(''), [rightClub, setRightClub] = useState(''), [left, setLeft] = useState(''), [right, setRight] = useState(''), [season, setSeason] = useState('2026/2027'), [search, setSearch] = useState('');
   const clubs = useQuery({ queryKey: ['clubs'], queryFn: async () => { const r = await supabase.from('clubs').select('*').eq('active', true).order('name_he'); if (r.error) throw r.error; return r.data as Club[]; } });
   const selectedLeft = leftClub || profile?.favorite_club_id || clubs.data?.[0]?.id || '', selectedRight = rightClub || clubs.data?.find(c => c.id !== selectedLeft)?.id || selectedLeft;
-  const roster = (clubId: string) => ({ queryKey: ['player-directory', clubId], enabled: !!clubId, queryFn: async () => { const r = await supabase.from('players').select('*').eq('club_id', clubId).eq('active', true).order('name'); if (r.error) throw r.error; return r.data as Player[]; } });
+  const roster = (clubId: string) => ({ queryKey: ['player-directory', clubId], enabled: !!clubId, queryFn: async () => { const r = await supabase.from('players').select('*').eq('club_id', clubId).eq('active', true).order('name'); if (r.error) throw r.error; return (r.data as Player[]).filter(isRosterPlayer); } });
   const leftPlayers = useQuery(roster(selectedLeft)), rightPlayers = useQuery(roster(selectedRight));
   const a = usePlayerData(left || undefined, season), b = usePlayerData(right || undefined, season);
   const saved = useQuery({ queryKey: ['saved-items', user?.id, 'player'], enabled: !!user, queryFn: async () => { const ids = await supabase.from('fan_saved_items').select('entity_id').eq('user_id', user!.id).eq('kind', 'player'); if (ids.error) throw ids.error; if (!ids.data?.length) return [] as Player[]; const r = await supabase.from('players').select('*').in('id', ids.data.map(row => row.entity_id)); if (r.error) throw r.error; return r.data as Player[]; } });

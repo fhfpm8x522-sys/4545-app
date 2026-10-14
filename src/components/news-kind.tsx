@@ -1,0 +1,2 @@
+export function newsKind(item: {source_kind?: string; official?: boolean}) { return item.source_kind ?? (item.official ? 'official' : 'report'); }
+export function NewsKind({item}:{item:{source_kind?:string;official?:boolean}}){const kind=newsKind(item);return <span className={`inline-block rounded-full px-2 py-1 text-[10px] font-bold ${kind==='official'?'bg-club/15 text-club':kind==='opinion'?'bg-amber-500/15 text-amber-500':'bg-blue-500/15 text-blue-400'}`}>{kind==='official'?'הודעה רשמית':kind==='opinion'?'פרשנות':'דיווח'}</span>;}

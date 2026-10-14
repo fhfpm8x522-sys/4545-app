@@ -76,6 +76,7 @@ async function playerData(id:string,selectedSeason:string){
  const result=validId(pid)?await safe(`/players/${pid}/statistics?season=${selectedSeason}`,21600):{data:null,error:'Provider player ID missing'};
  const current=totals(result.data),known=Object.fromEntries(Object.entries(current).filter(([,v])=>v!==null));
  const stats={...stored.data,...known};
+ if(stats.minutes===0&&stats.appearances>0)stats.minutes=null;
  if(Object.keys(known).length){const row={player_id:id,season:selectedSeason.replace('-','/'),...known};const saved=stored.data?await db.from('player_season_stats').update(row).eq('id',stored.data.id):await db.from('player_season_stats').insert(row);if(saved.error)throw Error('Player statistics save failed');}
  const cached=validId(pid)?await db.from('football_cache').select('updated_at').eq('cache_key',`/players/${pid}/statistics?season=${selectedSeason}`).maybeSingle():{data:null};
  return {player:player.data,stats,season:selectedSeason.replace('-','/'),source:'GOAL API',updatedAt:cached.data?.updated_at??null,error:result.error};
