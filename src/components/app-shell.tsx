@@ -51,7 +51,7 @@ export function AppShell({
     );
   }
 
-  if (profileError) return <main className="mx-auto max-w-md p-6"><QueryFeedback error={profileError} retry={retryProfile} /></main>;
+  if (profileError) return <main className="mx-auto max-w-md p-6"><QueryFeedback error={profileError} retry={retryProfile} /><Link to="/offline" className="mt-4 block text-sm text-club underline">נתונים אחרונים שנשמרו במכשיר</Link></main>;
 
   return (
     <div className="min-h-screen bg-background pb-24">

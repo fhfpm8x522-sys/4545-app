@@ -18,6 +18,7 @@ import { Route as DiaryRouteImport } from './routes/diary'
 import { Route as MatchesRouteImport } from './routes/matches'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as OfflineRouteImport } from './routes/offline'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PlayersRouteImport } from './routes/players'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -75,6 +76,11 @@ const MeRoute = MeRouteImport.update({
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfflineRoute = OfflineRouteImport.update({
+  id: '/offline',
+  path: '/offline',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/matches': typeof MatchesRoute
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
+  '/offline': typeof OfflineRoute
   '/onboarding': typeof OnboardingRoute
   '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/matches': typeof MatchesRoute
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
+  '/offline': typeof OfflineRoute
   '/onboarding': typeof OnboardingRoute
   '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/matches': typeof MatchesRoute
   '/me': typeof MeRoute
   '/news': typeof NewsRoute
+  '/offline': typeof OfflineRoute
   '/onboarding': typeof OnboardingRoute
   '/players': typeof PlayersRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/me'
     | '/news'
+    | '/offline'
     | '/onboarding'
     | '/players'
     | '/reset-password'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/me'
     | '/news'
+    | '/offline'
     | '/onboarding'
     | '/players'
     | '/reset-password'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/matches'
     | '/me'
     | '/news'
+    | '/offline'
     | '/onboarding'
     | '/players'
     | '/reset-password'
@@ -299,6 +311,7 @@ export interface RootRouteChildren {
   MatchesRoute: typeof MatchesRoute
   MeRoute: typeof MeRoute
   NewsRoute: typeof NewsRoute
+  OfflineRoute: typeof OfflineRoute
   OnboardingRoute: typeof OnboardingRoute
   PlayersRoute: typeof PlayersRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -370,6 +383,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offline': {
+      id: '/offline'
+      path: '/offline'
+      fullPath: '/offline'
+      preLoaderRoute: typeof OfflineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -498,6 +518,7 @@ const rootRouteChildren: RootRouteChildren = {
   MatchesRoute: MatchesRoute,
   MeRoute: MeRoute,
   NewsRoute: NewsRoute,
+  OfflineRoute: OfflineRoute,
   OnboardingRoute: OnboardingRoute,
   PlayersRoute: PlayersRoute,
   ResetPasswordRoute: ResetPasswordRoute,

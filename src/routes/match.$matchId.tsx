@@ -1,3 +1,5 @@
+import {MatchMotm} from '@/components/match-motm';
+import {publicMatchSnapshot,savePublicSnapshot,getPublicStorage} from '@/lib/public-offline.mjs';
 import {MatchTimeline} from '@/components/match-timeline';
 import {MatchHistory} from '@/components/match-history';
 import {MatchWinnerPoll} from "@/components/match-winner-poll";
@@ -9,7 +11,7 @@ import { assertResults } from "@/lib/runtime-utils.mjs";
 import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
@@ -41,6 +43,7 @@ function MatchCenter() {
     return { match: m.data as Match | null, events: events.data ?? [], prediction: pred.data, attended: !!att.data, chat: [...(chat.data ?? [])].reverse(), profiles };
   }});
 
+  useEffect(()=>{if(data?.match)savePublicSnapshot(publicMatchSnapshot(data.match,data.events),getPublicStorage());},[data]);
   if (dataLoading || dataError) return <AppShell title="Match Center"><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
   if (!data?.match) return <AppShell title="Match Center"><p className="panel p-4 text-muted-foreground">המשחק לא נמצא.</p></AppShell>;
   const { match, events, prediction, attended } = data; const state = matchState(match); const stats = normalizeStats(match.stats);
@@ -70,6 +73,7 @@ function MatchCenter() {
     <Button disabled={attendanceBusy||!user} variant={attended ? "club" : "clubSoft"} size="xl" onClick={toggleAttend}>🏟️ {attendanceBusy ? "שומר…" : attended ? "הייתי שם ✓ — לחץ לביטול" : "הייתי שם"}</Button>
 
     {liveDetails.isFetching && <p className="text-xs text-muted-foreground">מעדכן נתוני משחק…</p>}
+    <MatchMotm match={match} userId={user?.id} />
     <MatchLivePanels data={liveDetails.data} homeName={match.home_name||"בית"} awayName={match.away_name||"חוץ"} />
     {(state === "live" || state === "finished") && <MatchTimeline events={events} match={match} />}
 

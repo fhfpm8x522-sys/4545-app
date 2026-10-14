@@ -31,8 +31,8 @@ export function ExportPersonalData({ user }: { user: { id: string; email?: strin
   async function exportData() {
     if (busy) return; setBusy(true);
     try {
-      const names = ['predictions', 'match_attendance', 'fan_guesses', 'fan_match_alerts', 'fan_match_diary', 'fan_saved_items', 'fan_album_photos', 'notification_inbox'];
-      const order:Record<string,string[]>={predictions:['match_id'],match_attendance:['match_id'],fan_guesses:['match_id','kind'],fan_match_alerts:['match_id'],fan_match_diary:['match_id'],fan_saved_items:['kind','entity_id'],fan_album_photos:['id'],notification_inbox:['id']};
+      const names = ['fan_motm_votes', 'predictions', 'match_attendance', 'fan_guesses', 'fan_match_alerts', 'fan_match_diary', 'fan_saved_items', 'fan_album_photos', 'notification_inbox'];
+      const order:Record<string,string[]>={fan_motm_votes:['match_id'],predictions:['match_id'],match_attendance:['match_id'],fan_guesses:['match_id','kind'],fan_match_alerts:['match_id'],fan_match_diary:['match_id'],fan_saved_items:['kind','entity_id'],fan_album_photos:['id'],notification_inbox:['id']};
       const records: Record<string, any[]> = {};
       for (const table of names) {
         const rows: any[] = [];

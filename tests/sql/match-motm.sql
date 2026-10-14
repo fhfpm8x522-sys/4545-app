@@ -1,0 +1,15 @@
+begin;
+do $$declare matchid uuid:=gen_random_uuid();p1 uuid;p2 uuid;uid uuid;begin select id into uid from profiles where username='neorai18';select id into p1 from players order by id limit 1;select id into p2 from players where id<>p1 order by id limit 1;insert into matches(id,competition,kickoff,status) values(matchid,'MOTM rollback test',now()-interval '1 hour','finished');insert into fan_guess_facts(match_id,facts) values(matchid,jsonb_build_object('lineup_home',jsonb_build_array(p1::text)));perform set_config('test.motm_match',matchid::text,true);perform set_config('test.motm_player',p1::text,true);perform set_config('test.motm_other',p2::text,true);perform set_config('request.jwt.claim.sub',uid::text,true);end$$;
+set local role authenticated;
+do $$declare m uuid:=current_setting('test.motm_match')::uuid;p uuid:=current_setting('test.motm_player')::uuid;begin perform vote_match_motm(m,p);perform vote_match_motm(m,p);if(select count(*) from fan_motm_votes where match_id=m)<>1 then raise exception 'Vote not unique';end if;if not exists(select 1 from match_motm_candidates(m) c where c.id=p and c.votes=1) then raise exception 'Count missing';end if;begin perform vote_match_motm(m,current_setting('test.motm_other')::uuid);raise exception 'Unverified player allowed';exception when others then if sqlerrm<>'Player participation not verified' then raise;end if;end;begin insert into fan_motm_votes(match_id,user_id,player_id) values(m,auth.uid(),p);raise exception 'Direct write allowed';exception when insufficient_privilege then null;end;end$$;
+reset role;
+update matches set kickoff=now()-interval '3 days' where id=current_setting('test.motm_match')::uuid;
+set local role authenticated;
+do $$begin begin perform vote_match_motm(current_setting('test.motm_match')::uuid,current_setting('test.motm_player')::uuid);raise exception 'Closed vote allowed';exception when others then if sqlerrm<>'Voting is closed' then raise;end if;end;end$$;
+reset role;
+select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',true);
+set local role authenticated;
+do $$begin if exists(select 1 from fan_motm_votes where match_id=current_setting('test.motm_match')::uuid) then raise exception 'Other vote leaked';end if;end$$;
+reset role;
+rollback;
+select jsonb_build_object('passed',true,'rolled_back',true,'checks',jsonb_build_array('unique own vote','aggregated counts without voter identities','unverified player denied','direct write denied','closed poll denied','other vote isolated')) as result;

@@ -138,6 +138,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useEffect(()=>{if(import.meta.env.VITE_STATIC_PAGES==='true'&&'serviceWorker' in navigator)navigator.serviceWorker.register(`${import.meta.env.BASE_URL}service-worker.js`,{scope:import.meta.env.BASE_URL}).catch(()=>{});},[]);
 
   return (
     <QueryClientProvider client={queryClient}>

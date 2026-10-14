@@ -1,3 +1,4 @@
+import {publicClubSnapshot,savePublicSnapshot,getPublicStorage} from '@/lib/public-offline.mjs';
 import {useFootballData} from "@/lib/football-query";
 import {CompetitionTables} from "@/components/competition-tables";
 import {standingsRows} from "@/lib/football-model.mjs";
@@ -6,7 +7,7 @@ import { assertResults } from "@/lib/runtime-utils.mjs";
 import { QueryFeedback } from "@/components/query-feedback";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
@@ -42,6 +43,7 @@ function ClubPage() {
     return { players: players.map((p) => ({ ...p, season: statMap.get(p.id) })), standing: standing.data, trophies: trophies.data ?? [], history: history.data ?? [], matches: matches.data ?? [] };
   }});
   const derived = useMemo(() => deriveTeamStats(data?.matches ?? [], club?.id ?? ""), [data?.matches, club?.id]);
+  useEffect(()=>{if(club&&football.data?.competitions)savePublicSnapshot(publicClubSnapshot(club,football.data.competitions.map((c:any)=>({id:c.id,name:c.name,rows:standingsRows(c.data)}))),getPublicStorage());},[club,football.data]);
   if (!club) return <AppShell />;
   if (dataLoading || dataError) return <AppShell title="הקבוצה"><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
   const competitions=football.data?.competitions??[];
