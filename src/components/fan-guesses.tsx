@@ -1,3 +1,4 @@
+import {isRosterPlayer} from '@/lib/player-model.mjs';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -108,7 +109,7 @@ function GuessPicker({ kind, match, players, initial, select }: { kind: string; 
   const [selected, setSelected] = useState<string[]>(initial?.players ?? []);
   const [search, setSearch] = useState('');
   const [home, setHome] = useState(initial?.home?.toString() ?? ''); const [away, setAway] = useState(initial?.away?.toString() ?? '');
-  const roster = players.filter(p => (kind !== 'lineup' || p.club_id === (side === 'home' ? match.home_club_id : match.away_club_id)) && displayPlayerName(p, p.name).toLowerCase().includes(search.toLowerCase()));
+  const roster = players.filter(p => isRosterPlayer(p) && (kind !== 'lineup' || p.club_id === (side === 'home' ? match.home_club_id : match.away_club_id)) && displayPlayerName(p, p.name).toLowerCase().includes(search.toLowerCase()));
   if (kind === 'exact_score') return <><div dir="ltr" className="grid grid-cols-2 gap-3">{[[match.home_name, home, setHome], [match.away_name, away, setAway]].map(([name, value, setter], i) => <label key={i} className="text-center text-sm">{name as string}<Input aria-label={`שערים ${name}`} className="mt-2 text-center text-xl" inputMode="numeric" value={value as string} onChange={e => (setter as (v: string) => void)(e.target.value.replace(/\D/g, '').slice(0, 2))} /></label>)}</div><Button variant="club" disabled={home === '' || away === ''} onClick={() => select({ home: Number(home), away: Number(away) })}>אישור הבחירה</Button></>;
   if (kind === 'lineup' || kind === 'first_scorer') return <>
     {kind === 'lineup' && <><div className="flex gap-2">{[['home', match.home_name], ['away', match.away_name]].map(([value, name]) => <Button key={value} size="sm" variant={side === value ? 'club' : 'ghost'} onClick={() => { setSide(value!); setSelected([]); }}>{name}</Button>)}</div><p className="text-xs">בחרת {selected.length} מתוך 11 פותחים</p>{selected.length > 0 && <div className="grid grid-cols-3 gap-2 rounded-xl border-2 border-white/20 bg-green-900 p-3">{selected.map(id => { const p = players.find(p => p.id === id)!; return <button key={id} className="rounded-lg bg-black/20 p-2 text-[10px] text-white" onClick={() => setSelected(selected.filter(x => x !== id))}>{p.image_url && <img src={p.image_url} alt="" className="mx-auto mb-1 size-9 rounded-full object-cover" />}{displayPlayerName(p, p.name)} ×</button>; })}</div>}</>}

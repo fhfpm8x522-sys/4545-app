@@ -1,3 +1,4 @@
+import {finiteNumber} from '@/lib/football-model.mjs';
 import {MatchMotm} from '@/components/match-motm';
 import {publicMatchSnapshot,savePublicSnapshot,getPublicStorage} from '@/lib/public-offline.mjs';
 import {MatchTimeline} from '@/components/match-timeline';
@@ -83,4 +84,4 @@ function MatchCenter() {
   </div></AppShell>;
 }
 
-function normalizeStats(raw: unknown): Record<string,[number,number]> { if(!raw||typeof raw!=="object"||Array.isArray(raw)) return {}; const out:Record<string,[number,number]>={}; for(const [k,v] of Object.entries(raw as Record<string,unknown>)){ if(Array.isArray(v)&&v.length>=2) out[k]=[Number(v[0])||0,Number(v[1])||0]; } return out; }
+function normalizeStats(raw: unknown): Record<string,[number,number]> { if(!raw||typeof raw!=="object"||Array.isArray(raw)) return {}; const out:Record<string,[number,number]>={}; for(const [k,v] of Object.entries(raw as Record<string,unknown>)){ if(Array.isArray(v)&&v.length>=2){const h=finiteNumber(v[0]),a=finiteNumber(v[1]);if(h!==null&&a!==null)out[k]=[h,a];} } return out; }

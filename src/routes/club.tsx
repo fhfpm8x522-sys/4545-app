@@ -1,3 +1,4 @@
+import {leagueTeamTotals} from '@/lib/league-tools.mjs';
 import {publicClubSnapshot,savePublicSnapshot,getPublicStorage} from '@/lib/public-offline.mjs';
 import {useFootballData} from "@/lib/football-query";
 import {CompetitionTables} from "@/components/competition-tables";
@@ -32,7 +33,7 @@ function ClubPage() {
     assertResults(playersRes);
     const players = (playersRes.data ?? []) as Player[]; const ids = players.map((p) => p.id);
     const [stats, standing, trophies, history, matches] = await Promise.all([
-      ids.length ? supabase.from("player_season_stats").select("*").in("player_id", ids) : Promise.resolve({ data: [] }),
+      ids.length ? supabase.from("player_season_stats").select("*").in("player_id", ids).eq("season","2026/2027") : Promise.resolve({ data: [] }),
       supabase.from("club_standings").select("*").eq("club_id", club!.id).maybeSingle(),
       supabase.from("club_trophies").select("*").eq("club_id", club!.id).order("sort_order"),
       supabase.from("club_history").select("*").eq("club_id", club!.id).order("event_date", { ascending: false }).limit(50),
@@ -42,7 +43,7 @@ function ClubPage() {
     const statMap = new Map<string, PlayerStats>(); for (const s of (stats.data ?? []) as PlayerStats[]) { const current = statMap.get(s.player_id); if (!current || String(s.season) > String(current.season)) statMap.set(s.player_id, s); }
     return { players: players.map((p) => ({ ...p, season: statMap.get(p.id) })), standing: standing.data, trophies: trophies.data ?? [], history: history.data ?? [], matches: matches.data ?? [] };
   }});
-  const derived = useMemo(() => deriveTeamStats(data?.matches ?? [], club?.id ?? ""), [data?.matches, club?.id]);
+  const derived = useMemo(() => leagueTeamTotals((data?.matches ?? []).filter(m=>footballCompetitionBucket(m.competition)==="league"), club?.id ?? ""), [data?.matches, club?.id]);
   useEffect(()=>{if(club&&football.data?.competitions)savePublicSnapshot(publicClubSnapshot(club,football.data.competitions.map((c:any)=>({id:c.id,name:c.name,rows:standingsRows(c.data)}))),getPublicStorage());},[club,football.data]);
   if (!club) return <AppShell />;
   if (dataLoading || dataError) return <AppShell title="הקבוצה"><QueryFeedback loading={dataLoading} error={dataError} retry={retryData} /></AppShell>;
@@ -50,8 +51,10 @@ function ClubPage() {
   const domestic=competitions.find((c:any)=>footballCompetitionBucket(c.name)==="league");
   const teamIds=[club.goal_team_id,club.goal_api_id,football.data?.team?.id,football.data?.team?.apiId].filter(Boolean).map(String);
   const leagueRow=standingsRows(domestic?.data).find(r=>teamIds.includes(r.teamId));
-  const s = leagueRow ? {position:leagueRow.position,points:leagueRow.points,played:leagueRow.played,wins:leagueRow.wins,draws:leagueRow.draws,losses:leagueRow.losses,goals_for:leagueRow.gf,goals_against:leagueRow.ga,goal_difference:leagueRow.gf!==null&&leagueRow.ga!==null?leagueRow.gf-leagueRow.ga:null} : data?.standing;
+  const s = leagueRow ? {position:leagueRow.position,points:leagueRow.points,played:leagueRow.played,wins:leagueRow.wins,draws:leagueRow.draws,losses:leagueRow.losses,goals_for:leagueRow.gf,goals_against:leagueRow.ga,goal_difference:leagueRow.gf!==null&&leagueRow.ga!==null?leagueRow.gf-leagueRow.ga:null} : (String(data?.standing?.season??'').replace('-','/')==='2026/2027'?data?.standing:null);
   const players = (data?.players ?? []).map(p=>{const liveStats=football.data?.playerStats?.find((s:any)=>s.player_id===p.id);return liveStats?{...p,season:{...p.season,...liveStats}}:p;});
+  const currentGoals=s?.goals_for??derived?.gf,currentPlayed=s?.played??derived?.played;
+  const goalsAverage=typeof currentGoals==='number'&&typeof currentPlayed==='number'&&currentPlayed>0?Number((currentGoals/currentPlayed).toFixed(2)):'—';
   const top = (k: "goals" | "assists" | "minutes") => players.filter((p) => Number(p.season?.[k] ?? 0) > 0).sort((a, b) => Number(b.season?.[k] ?? 0) - Number(a.season?.[k] ?? 0))[0];
 
 
@@ -66,23 +69,19 @@ function ClubPage() {
     {football.isFetching && <p className="mb-3 text-xs text-muted-foreground">מעדכן דירוגים ונתוני שחקנים מהספק…</p>}
     {football.error && <p className="mb-3 text-xs text-muted-foreground">נתוני הספק אינם זמינים כרגע. נתונים קיימים נשמרים.</p>}
     {tab === "tables" && <CompetitionTables competitions={competitions} teamId={club.goal_team_id} />}
-    {tab === "overview" && <div className="space-y-3"><p className="text-xs text-muted-foreground">סיכום הליגה בלבד</p>
-      <div className="grid grid-cols-3 gap-2">{[["מיקום", s?.position ?? "—"], ["נקודות", s?.points ?? "—"], ["הפרש", s?.goal_difference ?? derived.gf - derived.ga], ["ניצחונות", s?.wins ?? derived.wins], ["תיקו", s?.draws ?? derived.draws], ["הפסדים", s?.losses ?? derived.losses]].map(([l, v]) => <div key={String(l)} className="panel p-3 text-center"><div className="display-title text-2xl">{v}</div><div className="text-[11px] text-muted-foreground">{l}</div></div>)}</div>
+    {tab === "overview" && <div className="space-y-3"><p className="text-xs text-muted-foreground">סיכום הליגה לעונת 2026/27</p>
+      <div className="grid grid-cols-3 gap-2">{[["מיקום", s?.position ?? "—"], ["נקודות", s?.points ?? "—"], ["הפרש", s?.goal_difference ?? (derived?derived.gf-derived.ga:'—')], ["ניצחונות", s?.wins ?? derived?.wins], ["תיקו", s?.draws ?? derived?.draws], ["הפסדים", s?.losses ?? derived?.losses]].map(([l, v]) => <div key={String(l)} className="panel p-3 text-center"><div className="display-title text-2xl">{v??"—"}</div><div className="text-[11px] text-muted-foreground">{l}</div></div>)}</div>
       <div className="panel divide-y divide-border p-2 text-sm">{([ ["מלך השערים", top("goals"), "goals"], ["מלך הבישולים", top("assists"), "assists"], ["הכי הרבה דקות", top("minutes"), "minutes"] ] as const).map(([l,p,k]) => <div key={l} className="flex justify-between p-3"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{p ? `${displayPlayerName(p)} · ${p.season?.[k] ?? 0}` : "—"}</span></div>)}</div>
     </div>}
 
     {tab === "squad" && <div className="space-y-5">{players.length === 0 && <p className="panel p-4 text-sm text-muted-foreground">הסגל עוד לא הוזן.</p>}{POSITIONS.map(([pos,label]) => { const group = players.filter((p) => normalizePosition(p.goal_position || p.position) === pos); if (!group.length) return null; return <div key={pos}><h3 className="mb-2 text-sm font-bold text-muted-foreground">{label}</h3><div className="grid grid-cols-2 gap-2">{group.map((p) => <Link to="/player/$playerId" params={{playerId:p.id}} key={p.id} className="panel flex items-center gap-3 p-3">{p.image_url ? <img src={p.image_url} alt="" className="size-12 rounded-full object-cover" /> : <span className="display-title w-10 text-2xl text-club">{p.number ?? p.shirt_number ?? "—"}</span>}<div className="min-w-0"><p className="truncate text-sm font-semibold">{displayPlayerName(p)}</p><p className="text-[11px] text-muted-foreground">{p.season?.goals ?? "—"} שערים · {p.season?.appearances ?? "—"} הופעות</p>{p.injured && <p className="text-[10px] text-destructive">פצוע לפי הספק</p>}</div></Link>)}</div></div>; })}</div>}
 
-    {tab === "stats" && <div className="panel divide-y divide-border p-2 text-sm">{[["שערי זכות", s?.goals_for ?? derived.gf], ["שערי חובה", s?.goals_against ?? derived.ga], ["ניצחונות", s?.wins ?? derived.wins], ["תיקו", s?.draws ?? derived.draws], ["הפסדים", s?.losses ?? derived.losses], ["ממוצע שערים", (s?.played ?? derived.played) ? Number((Number(s?.goals_for ?? derived.gf) / Number(s?.played ?? derived.played)).toFixed(2)) : "—"]].map(([l,v]) => <div key={String(l)} className="flex justify-between p-3"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{v ?? 0}</span></div>)}</div>}
+    {tab === "stats" && <div className="panel divide-y divide-border p-2 text-sm">{[["שערי זכות", s?.goals_for ?? derived?.gf], ["שערי חובה", s?.goals_against ?? derived?.ga], ["ניצחונות", s?.wins ?? derived?.wins], ["תיקו", s?.draws ?? derived?.draws], ["הפסדים", s?.losses ?? derived?.losses], ["ממוצע שערים", goalsAverage]].map(([l,v]) => <div key={String(l)} className="flex justify-between p-3"><span className="text-muted-foreground">{l}</span><span className="font-semibold">{v ?? "—"}</span></div>)}</div>}
 
     {tab === "club" && <div className="space-y-3"><div className="panel p-4 text-sm"><p><span className="text-muted-foreground">אצטדיון: </span>{club.stadium || "—"}</p>{club.stadium_capacity && <p><span className="text-muted-foreground">קיבולת: </span>{club.stadium_capacity.toLocaleString("he-IL")}</p>}{club.description && <p className="mt-2 text-muted-foreground">{club.description}</p>}</div>{data?.trophies.map((t) => <div key={t.id} className="panel flex justify-between p-4 text-sm"><span>🏆 {t.name}</span><span className="display-title text-xl text-club">{t.count}</span>{t.source_url&&<a className="text-xs text-club underline" href={t.source_url} target="_blank" rel="noreferrer">מקור</a>}</div>)}{data?.history.map((m) => <div key={m.id} className="panel p-4 text-sm"><p className="font-semibold">{m.title}</p>{m.body && <p className="text-muted-foreground">{m.body}</p>}<p className="mt-2 text-[10px] text-muted-foreground">{m.event_date}</p>{m.source_url&&<a className="mt-2 inline-block text-xs text-club underline" href={m.source_url} target="_blank" rel="noreferrer">מקור</a>}</div>)}</div>}
 
     {tab === "stand" && <CommunityTab clubId={club.id} userId={user?.id} />}
   </AppShell>;
-}
-
-function deriveTeamStats(matches: Array<Record<string, unknown>>, clubId: string) {
-  let wins=0,draws=0,losses=0,gf=0,ga=0; for (const m of matches.filter(m=>footballCompetitionBucket(String(m["competition"]??""))==="league"&&m["home_score"]!==null&&m["away_score"]!==null)) { const hs=Number(m["home_score"] ?? 0), as=Number(m["away_score"] ?? 0), home=m["home_club_id"]===clubId; const ours=home?hs:as, theirs=home?as:hs; gf+=ours; ga+=theirs; if(ours>theirs)wins++; else if(ours===theirs)draws++; else losses++; } return { wins,draws,losses,gf,ga,played:wins+draws+losses };
 }
 
 function CommunityTab({ clubId, userId }: { clubId: string; userId?: string | undefined }) {
