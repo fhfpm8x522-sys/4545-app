@@ -7,14 +7,11 @@ export function NewsImage({ item, compact = false, className }: { item: NewsDisp
   const photo = verifiedNewsImage(item);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const visible = photo && failedUrl !== photo.url ? photo : null;
+  if (!visible) return null;
   return <figure className={cn('min-w-0 overflow-hidden', className)}>
     <div className={cn('relative overflow-hidden bg-[#11151b]', compact ? 'size-full min-h-20' : 'aspect-video w-full')}>
-      {visible ? <img src={visible.url} alt={visible.kind === 'source' ? meaningfulNewsText(item.title) : 'תמונת המחשה'} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailedUrl(visible.url)} className="size-full object-cover" /> : <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ background: 'radial-gradient(ellipse at 20% 100%,rgba(255,47,62,.3),transparent 65%),linear-gradient(135deg,#161b24,#080a0e)' }}>
-        <div aria-hidden="true" className="absolute inset-x-[12%] top-[18%] h-[110%] rounded-[45%] border border-white/10" />
-        <div aria-hidden="true" className="absolute left-1/2 top-1/2 h-1/2 w-px bg-white/10" />
-        <img src={`${import.meta.env.BASE_URL}email-logo.png`} alt="45:45" className={cn('relative object-contain', compact ? 'size-16' : 'size-32 sm:size-40')} />
-      </div>}
-      {(!visible || visible.kind !== 'source') && <span className={cn('absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-white/80', compact ? 'text-[8px]' : 'text-[10px]')}>תמונת המחשה</span>}
+      <a href={visible.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label="לתמונה בכתבה המקורית" className="block size-full"><img src={visible.url} alt={meaningfulNewsText(item.title)} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailedUrl(visible.url)} className="size-full object-cover" /></a>
+      {visible.kind === 'source_preview' && <span className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 text-[10px] text-white/90">תמונה מהכתבה במקור</span>}
     </div>
     {visible && !compact && <figcaption><NewsImageCredit item={item} /></figcaption>}
   </figure>;
@@ -23,7 +20,7 @@ export function NewsImage({ item, compact = false, className }: { item: NewsDisp
 export function NewsImageCredit({ item }: { item: NewsDisplayItem }) {
   const photo = verifiedNewsImage(item);
   return photo ? <div className="flex flex-wrap gap-x-2 gap-y-1 bg-surface-2 px-3 py-2 text-[10px] leading-relaxed text-muted-foreground">
-    <span>צילום: {photo.credit}</span>
+    <span>{photo.kind === 'source_preview' ? 'תמונת הכתבה:' : 'צילום:'} {photo.credit}</span>
     <a href={photo.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">מקור התמונה</a>
     {photo.licenseUrl ? <a href={photo.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{photo.license || 'רישיון התמונה'}</a> : <span>{photo.license}</span>}
   </div> : null;

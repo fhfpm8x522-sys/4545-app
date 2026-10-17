@@ -4,7 +4,7 @@ export type NewsDisplayItem = {
   source_published_at?: unknown; published_at?: unknown; content_kind?: unknown;
   image_url?: unknown; image_kind?: unknown; image_credit?: unknown;
   image_source_url?: unknown; image_license?: unknown; image_license_url?: unknown;
-  image_rights_verified?: unknown;
+  image_rights_verified?: unknown; image_candidate_url?: unknown;
 };
 export function meaningfulNewsText(value: unknown): string;
 export function safeNewsUrl(value: unknown): string | null;
@@ -15,5 +15,5 @@ export function newsPresentation(item?: NewsDisplayItem): {
 };
 export function verifiedNewsImage(item?: NewsDisplayItem): {
   url: string; sourceUrl: string; credit: string; license: string;
-  licenseUrl: string | null; kind: 'context' | 'brand' | 'source';
+  licenseUrl: string | null; kind: 'source' | 'source_preview';
 } | null;

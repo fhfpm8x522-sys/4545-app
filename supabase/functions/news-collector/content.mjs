@@ -173,12 +173,55 @@ export function extractArticleMetadata(html, sourceUrl, options = {}) {
   const canonicalUrl = publicHttpsUrl(canonical?.get('href'),source_url);
   const content = element(html,'article') || element(html,'main');
   const samePublisherCanonical = canonicalUrl && new URL(canonicalUrl).hostname === new URL(source_url).hostname ? canonicalUrl : source_url;
+  const structured = articleStructuredMetadata(html,samePublisherCanonical);
   return result({
-    source_url:samePublisherCanonical, title:metadata.get('og:title') || metadata.get('twitter:title') || element(html,'title'),
-    source_name:metadata.get('og:site_name'), date:metadata.get('article:published_time') || metadata.get('datepublished'),
-    author:metadata.get('author') || metadata.get('article:author'),
-    description:metadata.get('og:description') || metadata.get('description') || metadata.get('twitter:description') || content,
-    content, image:metadata.get('og:image:secure_url') || metadata.get('og:image') || metadata.get('twitter:image') || firstImage(content,source_url),
-    image_attribution:metadata.get('image:credit'), rights:metadata.get('copyright') || metadata.get('rights'),
+    source_url:samePublisherCanonical, title:metadata.get('og:title') || metadata.get('twitter:title') || structured.title || element(html,'title'),
+    source_name:metadata.get('og:site_name') || structured.publisher, date:metadata.get('article:published_time') || metadata.get('datepublished') || structured.date,
+    author:metadata.get('author') || metadata.get('article:author') || structured.author,
+    description:metadata.get('og:description') || metadata.get('description') || metadata.get('twitter:description') || structured.description || content,
+    content, image:metadata.get('og:image:secure_url') || metadata.get('og:image') || metadata.get('twitter:image') || structured.image || firstImage(content,source_url),
+    image_attribution:metadata.get('image:credit') || structured.imageCredit, rights:metadata.get('copyright') || metadata.get('rights') || structured.rights,
   }, options);
+}
+
+// JSON-LD is publisher-supplied metadata, not executable JavaScript. Only the
+// article node for this URL may supply a fallback; related/recommended stories
+// and arbitrary embedded scripts must not replace the current story's photo.
+function articleStructuredMetadata(html, sourceUrl) {
+  const queue=[];
+  for (const match of html.slice(0,MAX_INPUT).matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
+    if ((attrs(match[1]).get('type') ?? '').toLowerCase() !== 'application/ld+json' || match[2].length > 200_000) continue;
+    try { queue.push(JSON.parse(match[2])); } catch { /* Malformed metadata is optional. */ }
+    if(queue.length>=20)break;
+  }
+  let inspected=0;
+  while(queue.length && inspected++<100) {
+    const node=queue.shift();
+    if(Array.isArray(node)){queue.push(...node.slice(0,30));continue;}
+    if(!node || typeof node!=='object')continue;
+    if(Array.isArray(node['@graph']))queue.push(...node['@graph'].slice(0,30));
+    const types=Array.isArray(node['@type'])?node['@type']:[node['@type']];
+    if(!types.some(type=>typeof type==='string' && /^(?:NewsArticle|Article|BlogPosting|ReportageNewsArticle)$/i.test(type)))continue;
+    const identity=publicHttpsUrl(typeof node.mainEntityOfPage==='string'?node.mainEntityOfPage:node.mainEntityOfPage?.['@id'] ?? node.mainEntityOfPage?.url ?? node.url);
+    if(identity && identity!==sourceUrl)continue;
+    const rawImage=Array.isArray(node.image)?node.image[0]:node.image;
+    const image=typeof rawImage==='string'?rawImage:rawImage?.url ?? rawImage?.contentUrl;
+    const name=value=>typeof value==='string'?value:typeof value?.name==='string'?value.name:null;
+    const author=Array.isArray(node.author)?node.author.map(name).filter(Boolean).join(' · '):name(node.author);
+    return {title:node.headline ?? node.name,date:node.datePublished,description:node.description,publisher:name(node.publisher),author,
+      image,imageCredit:name(rawImage?.creditText) ?? name(rawImage?.creator) ?? name(rawImage?.author) ?? name(rawImage?.copyrightHolder),rights:node.copyrightNotice};
+  }
+  return {};
+}
+
+// A linked preview references the image chosen by the publisher. It does not
+// copy a file, import editorial text or imply a newly granted image license.
+export function sourcePreviewMetadata(metadata, sourceUrl) {
+  const source_url=publicHttpsUrl(sourceUrl ?? metadata?.source_url);
+  const image_candidate_url=publicHttpsUrl(metadata?.image_candidate_url,source_url);
+  if(!source_url || !image_candidate_url)return null;
+  return {source_url,image_candidate_url,image_source_url:source_url,
+    source_name:htmlText(metadata?.source_name) || new URL(source_url).hostname,
+    image_attribution:boundedExcerpt(metadata?.image_attribution,{maxChars:200,maxWords:25}) || null,
+    source_rights_notice:boundedExcerpt(metadata?.source_rights_notice,{maxChars:200,maxWords:25}) || null};
 }

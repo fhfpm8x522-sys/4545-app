@@ -25,7 +25,18 @@ test('public images require a separate affirmative permission decision with attr
   assert.equal(verifiedNewsImage({ ...photo, image_rights_verified: 'true' }), null);
   assert.equal(verifiedNewsImage({ ...photo, image_rights_verified: true, image_credit: '' }), null);
   assert.equal(verifiedNewsImage({ ...photo, image_rights_verified: true, image_source_url: 'javascript:alert(1)' }), null);
-  assert.equal(verifiedNewsImage({ ...photo, image_rights_verified: true }).kind, 'context');
+  assert.equal(verifiedNewsImage({ ...photo, image_rights_verified: true }), null, 'stadium context must not be reused as an article cover');
+  assert.equal(verifiedNewsImage({ ...photo, image_kind: 'source', image_rights_verified: true }).kind, 'source');
+});
+
+test('source article previews require a matching publisher candidate and article attribution, without a fake license', () => {
+  const item = { source_name: 'וואלה ספורט', source_url: 'https://sports.walla.co.il/item/3872419', image_source_url: 'https://sports.walla.co.il/item/3872419', image_url: 'https://images.wcdn.co.il/photo.jpg', image_candidate_url: 'https://images.wcdn.co.il/photo.jpg', image_kind: 'source_preview', image_rights_verified: false };
+  assert.equal(verifiedNewsImage(item).kind, 'source_preview');
+  assert.equal(verifiedNewsImage(item).license, '');
+  assert.equal(verifiedNewsImage({ ...item, image_candidate_url: 'https://other.example/image.jpg' }), null);
+  assert.equal(verifiedNewsImage({ ...item, image_source_url: 'https://other.example/story' }), null);
+  assert.equal(verifiedNewsImage({ ...item, image_url: 'javascript:alert(1)', image_candidate_url: 'javascript:alert(1)' }), null);
+  assert.equal(verifiedNewsImage({ ...item, image_kind: 'brand', image_rights_verified: true }), null);
 });
 
 test('excerpt duplicates are rendered once and source date is not replaced by collection date', () => {

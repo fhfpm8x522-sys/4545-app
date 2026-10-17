@@ -6,7 +6,7 @@ do $$declare item news_items;rid uuid;blocked boolean:=false;before_count int;ca
  if has_function_privilege('anon','public.repair_news_content(uuid,jsonb)','EXECUTE') or has_function_privilege('authenticated','public.claim_news_enrichment(int)','EXECUTE') then raise exception 'Client may repair arbitrary content';end if;
  insert into news_items(club_id,title,summary,source_url,source_name,status,ai_group_key) select id,'בדיקת חדשות בטרנזקציה בלבד','ידיעה שנמצאה באיסוף חדשות. יש לבדוק את המקור לפני אישור.','https://www.htafc.co.il/__4545_test__/'||gen_random_uuid(),'בדיקת מקור','pending','gdelt:test-'||gen_random_uuid() from clubs where active limit 1 returning * into item;
  begin update news_items set status='approved' where id=item.id;exception when others then if sqlerrm like '%יש להשלים תוכן%' then blocked:=true;else raise;end if;end;if not blocked then raise exception 'Workflow-only article approved';end if;
- candidate:=jsonb_build_object('source_excerpt','תקציר בדיקה מקורי המתאר את ההכנות למשחק הקרוב ואת מצב הקבוצה לקראת יום המשחק.','source_published_at','2026-10-17T06:00:00Z');
+ candidate:=jsonb_build_object('source_excerpt','תקציר בדיקה מקורי המתאר את ההכנות למשחק הקרוב ואת מצב הקבוצה לקראת יום המשחק.','source_published_at','2026-10-17T06:00:00Z','image_candidate_url','https://www.htafc.co.il/wp-content/uploads/source-photo.jpg');
  if not repair_news_content(item.id,candidate) then raise exception 'Imported draft did not repair';end if;
  if not (select news_content_ready(n) from news_items n where n.id=item.id) then raise exception 'Repaired draft not ready';end if;
  update news_items set summary='עריכה אישית קצרה',body=null,content_kind='original' where id=item.id;

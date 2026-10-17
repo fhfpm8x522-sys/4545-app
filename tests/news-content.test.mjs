@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {htmlText,boundedExcerpt,publicHttpsUrl,allowedArticleFetchUrl,extractWordPressContent,extractRssContent,extractArticleMetadata} from '../supabase/functions/news-collector/content.mjs';
+import {htmlText,boundedExcerpt,publicHttpsUrl,allowedArticleFetchUrl,extractWordPressContent,extractRssContent,extractArticleMetadata,sourcePreviewMetadata} from '../supabase/functions/news-collector/content.mjs';
 
 test('metadata text decodes Hebrew and entities but removes executable, invisible and styling content',()=>{
   assert.equal(htmlText('<style>.bad{}</style><p>&#x5de;&#x5db;&#x5d1;&#x5d9; &amp; הפועל</p><script>alert(1)</script><noscript>tracking</noscript>\u202eסיום'),'מכבי & הפועל סיום');
@@ -64,4 +64,20 @@ test('cross-publisher canonical poisoning and unsafe feature images cannot repla
   const a=extractArticleMetadata('<link rel="canonical" href="https://attacker.co/fake"><meta property="og:title" content="עדכון"><meta property="og:image" content="https://10.0.0.1/private"><meta name="description" content="תקציר הכתבה">','https://www.htafc.co.il/real');
   assert.equal(a.source_url,'https://www.htafc.co.il/real');assert.equal(a.image_candidate_url,null);assert.equal(a.summary,'תקציר הכתבה');
   assert.equal(extractWordPressContent({link:'javascript:alert(1)'}),null);
+});
+
+test('publisher JSON-LD supplies missing article author/date/photo without taking a related story',()=>{
+  const html='<script type="application/ld+json">{"@type":"NewsArticle","url":"https://sports.walla.co.il/item/other","image":"https://images.wcdn.co.il/wrong.jpg"}</script><script type="application/ld+json">{"@graph":[{"@type":"NewsArticle","mainEntityOfPage":{"@id":"https://sports.walla.co.il/item/123"},"headline":"הכנה למשחק","datePublished":"2026-10-16T07:47:00+03:00","author":{"name":"כתב הספורט"},"image":{"url":"https://images.wcdn.co.il/actual.jpg","creator":{"name":"צלם המקור"}},"description":"הסגל פורסם לקראת משחק החוץ."}]}</script>';
+  const a=extractArticleMetadata(html,'https://sports.walla.co.il/item/123');
+  assert.equal(a.source_published_at,'2026-10-16T04:47:00.000Z');assert.equal(a.source_author,'כתב הספורט');
+  assert.equal(a.image_candidate_url,'https://images.wcdn.co.il/actual.jpg');assert.equal(a.image_attribution,'צלם המקור');
+  assert.equal(a.image_url,null);assert.equal(a.image_rights,'unverified');
+});
+
+test('image-only preview metadata preserves provenance without carrying editorial text or rights claims',()=>{
+  const p=sourcePreviewMetadata({source_url:'https://www.htafc.co.il/story',source_name:'#HTA',image_candidate_url:'https://www.htafc.co.il/uploads/actual.jpg',image_attribution:'צלם המקור',body:'Do not overwrite the edited article',summary:'Do not replace the summary',image_rights_verified:true,image_license:'Invented license'},'https://www.htafc.co.il/story');
+  assert.equal(p.image_candidate_url,'https://www.htafc.co.il/uploads/actual.jpg');assert.equal(p.image_source_url,'https://www.htafc.co.il/story');assert.equal(p.image_attribution,'צלם המקור');
+  for(const key of ['body','summary','image_rights_verified','image_license','image_url'])assert.equal(Object.hasOwn(p,key),false,key);
+  assert.equal(sourcePreviewMetadata({source_url:'https://www.htafc.co.il/story'}),null);
+  assert.equal(sourcePreviewMetadata({source_url:'https://www.htafc.co.il/story',image_candidate_url:'https://127.0.0.1/private'}),null);
 });

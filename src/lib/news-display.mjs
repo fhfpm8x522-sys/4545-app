@@ -76,10 +76,21 @@ export function newsPresentation(item = {}) {
 }
 
 export function verifiedNewsImage(item = {}) {
+  // Publisher-supplied link previews keep their source attribution. They are
+  // distinct from licensed uploads and never imply ownership or a CC license.
+  if (item.image_kind === 'source_preview') {
+    const url = safeNewsUrl(item.image_url), candidate = safeNewsUrl(item.image_candidate_url);
+    const sourceUrl = safeNewsUrl(item.source_url), imageSource = safeNewsUrl(item.image_source_url);
+    const credit = meaningfulNewsText(item.image_credit) || meaningfulNewsText(item.source_name);
+    return url && url === candidate && sourceUrl && sourceUrl === imageSource && credit
+      ? { url, sourceUrl, credit, license: '', licenseUrl: null, kind: 'source_preview' } : null;
+  }
+  // Stadium photos belong in the stadium gallery, never as article covers.
+  if (item.image_kind === 'context' || item.image_kind === 'brand') return null;
   if (item.image_rights_verified !== true) return null;
   const url = safeNewsUrl(item.image_url), sourceUrl = safeNewsUrl(item.image_source_url);
   const credit = meaningfulNewsText(item.image_credit);
   const license = meaningfulNewsText(item.image_license), licenseUrl = safeNewsUrl(item.image_license_url);
   if (!url || !sourceUrl || !credit || (!license && !licenseUrl)) return null;
-  return { url, sourceUrl, credit, license, licenseUrl, kind: item.image_kind === 'context' || item.image_kind === 'brand' ? item.image_kind : 'source' };
+  return { url, sourceUrl, credit, license, licenseUrl, kind: 'source' };
 }
