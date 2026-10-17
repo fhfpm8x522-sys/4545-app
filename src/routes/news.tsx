@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/app-shell';
 import { QueryFeedback } from '@/components/query-feedback';
 import { NewsKind } from '@/components/news-kind';
+import { NewsImage, NewsImageCredit, NewsSourceMeta } from '@/components/news-content';
+import { meaningfulNewsText, newsPresentation } from '@/lib/news-display.mjs';
 import { useProfile, useSession } from '@/lib/session';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,8 +30,8 @@ function NewsPage() {
     <div className="mb-4 flex gap-2 overflow-x-auto hide-scrollbar">{NEWS_CATEGORIES.map(c => <button key={c.key} onClick={() => setCat(c.key)} className={cn('shrink-0 rounded-full border px-4 py-1.5 text-sm', cat === c.key ? 'border-club bg-club/15 text-club' : 'border-border text-muted-foreground')}>{c.label}</button>)}</div>
     <QueryFeedback loading={current.isLoading} error={current.error} retry={current.refetch} />
     {!current.isLoading && !current.error && !lead && <p className="panel p-4 text-sm text-muted-foreground">{savedOnly ? 'אין כתבות שמורות שמתאימות לחיפוש.' : 'אין ידיעות שפורסמו שמתאימות לחיפוש.'}</p>}
-    {lead && <Link to="/article/$newsId" params={{ newsId: lead.id }} className="panel mb-4 block overflow-hidden">{lead.image_url && <img src={lead.image_url} alt="" className="aspect-video w-full object-cover" />}<div className="p-5"><NewsKind item={lead} /><h2 className="mt-1 text-xl font-black leading-snug">{lead.title}</h2>{lead.summary && <p className="mt-2 text-sm text-muted-foreground">{lead.summary}</p>}</div></Link>}
-    <div className="space-y-2">{rest.map((n: any) => <Link key={n.id} to="/article/$newsId" params={{ newsId: n.id }} className="panel flex gap-3 p-3"><div className="size-20 shrink-0 overflow-hidden rounded-lg bg-surface-2">{n.image_url && <img src={n.image_url} alt="" loading="lazy" className="size-full object-cover" />}</div><div className="min-w-0"><NewsKind item={n} /><p className="mt-1 line-clamp-2 text-sm font-semibold">{n.title}</p><p className="mt-1 text-[11px] text-muted-foreground">{n.source_name || '45:45'}</p></div></Link>)}</div>
+    {lead && <article className="panel mb-4 overflow-hidden"><NewsImage item={lead} /><Link to="/article/$newsId" params={{ newsId: lead.id }} className="block p-5"><NewsKind item={lead} /><h2 className="mt-2 text-xl font-black leading-snug">{meaningfulNewsText(lead.title)}</h2>{newsPresentation(lead).summary && <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{newsPresentation(lead).summary}</p>}<div className="mt-3"><NewsSourceMeta item={lead} compact /></div><span className="mt-3 inline-block text-xs font-bold text-club">לפתיחת הידיעה ←</span></Link></article>}
+    <div className="space-y-3">{rest.map((n: any) => <article key={n.id} className="panel overflow-hidden"><div className="flex gap-3 p-3"><NewsImage item={n} compact className="size-24 shrink-0 rounded-xl" /><Link to="/article/$newsId" params={{ newsId: n.id }} className="min-w-0 flex-1"><NewsKind item={n} /><h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-relaxed">{meaningfulNewsText(n.title)}</h3>{newsPresentation(n).summary && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{newsPresentation(n).summary}</p>}<div className="mt-2"><NewsSourceMeta item={n} compact /></div></Link></div><NewsImageCredit item={n} /></article>)}</div>
     {!savedOnly && news.hasNextPage && <Button className="mt-4" variant="clubSoft" disabled={news.isFetchingNextPage} onClick={() => news.fetchNextPage()}>{news.isFetchingNextPage ? 'טוען…' : 'טען כתבות נוספות'}</Button>}
   </AppShell>;
 }

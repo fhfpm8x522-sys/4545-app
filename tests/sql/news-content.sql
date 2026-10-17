@@ -1,0 +1,23 @@
+begin;
+set local request.jwt.claim.role='service_role';
+do $$declare item news_items;rid uuid;blocked boolean:=false;before_count int;candidate jsonb;begin
+ if news_meaningful_text('ידיעה שנמצאה באיסוף חדשות. יש לבדוק את המקור לפני אישור.') then raise exception 'Placeholder considered content';end if;
+ if not news_meaningful_text('הקבוצה הודיעה שהרישום ממתין לאישור ההתאחדות לקראת המשחק הקרוב בשבת.') then raise exception 'Real content incorrectly blocked';end if;
+ if has_function_privilege('anon','public.repair_news_content(uuid,jsonb)','EXECUTE') or has_function_privilege('authenticated','public.claim_news_enrichment(int)','EXECUTE') then raise exception 'Client may repair arbitrary content';end if;
+ insert into news_items(club_id,title,summary,source_url,source_name,status,ai_group_key) select id,'בדיקת חדשות בטרנזקציה בלבד','ידיעה שנמצאה באיסוף חדשות. יש לבדוק את המקור לפני אישור.','https://www.htafc.co.il/__4545_test__/'||gen_random_uuid(),'בדיקת מקור','pending','gdelt:test-'||gen_random_uuid() from clubs where active limit 1 returning * into item;
+ begin update news_items set status='approved' where id=item.id;exception when others then if sqlerrm like '%יש להשלים תוכן%' then blocked:=true;else raise;end if;end;if not blocked then raise exception 'Workflow-only article approved';end if;
+ candidate:=jsonb_build_object('source_excerpt','תקציר בדיקה מקורי המתאר את ההכנות למשחק הקרוב ואת מצב הקבוצה לקראת יום המשחק.','source_published_at','2026-10-17T06:00:00Z');
+ if not repair_news_content(item.id,candidate) then raise exception 'Imported draft did not repair';end if;
+ if not (select news_content_ready(n) from news_items n where n.id=item.id) then raise exception 'Repaired draft not ready';end if;
+ update news_items set summary='עריכה אישית קצרה',body=null,content_kind='original' where id=item.id;
+ if repair_news_content(item.id,candidate) or (select summary from news_items where id=item.id)<>'עריכה אישית קצרה' then raise exception 'Manual edit overwritten';end if;
+ select count(*) into before_count from news_items;
+ candidate:=candidate||jsonb_build_object('title',item.title,'source_url',item.source_url,'source_name',item.source_name);
+ perform ingest_news_candidate(item.club_id,candidate,encode(digest(item.source_url,'sha256'),'hex'),encode(digest(lower(item.title),'sha256'),'hex'));
+ if (select count(*) from news_items)<>before_count then raise exception 'Duplicate article created';end if;
+ insert into news_items(club_id,title,source_url,status,ai_group_key) values(item.club_id,'ידיעה נוספת לבדיקת תור בלבד','https://www.htafc.co.il/__4545_queue__/'||gen_random_uuid(),'pending','gdelt:queue-'||gen_random_uuid());
+ if not exists(select 1 from claim_news_enrichment(2)) then raise exception 'Queue cannot claim old unready articles';end if;
+ if not exists(select 1 from news_items where id=item.id and summary='עריכה אישית קצרה') then raise exception 'Claim altered editorial content';end if;
+end$$;
+select '9 content, publication, preservation, deduplication and access checks passed; rolled back' as result;
+rollback;
